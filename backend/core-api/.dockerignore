@@ -1,0 +1,10 @@
+.git
+.gitignore
+*.md
+Dockerfile
+.dockerignore
+
+# Binarios e artefatos locais
+/core-api
+*.test
+/tmp

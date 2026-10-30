@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FitConecta+ · Arquitetura, Recursos e Guia Técnico</title>
+<meta name="description" content="Documentação técnica do FitConecta+: produto, arquitetura, stack, backend Go, frontend Next.js, PostgreSQL, Object Storage e deploy no Fly.io com Neon." />
+<style>
+  :root {
+    --bg: #f6f8fc;
+    --surface: #ffffff;
+    --surface-2: #eef3fb;
+    --ink: #0f172a;
+    --ink-2: #334155;
+    --muted: #64748b;
+    --line: #dbe4f0;
+    --brand: #16a34a;
+    --brand-2: #0ea5e9;
+    --brand-ink: #065f46;
+    --accent: #f59e0b;
+    --purple: #7c3aed;
+    --pink: #db2777;
+    --danger: #dc2626;
+    --radius: 16px;
+    --shadow: 0 10px 30px rgba(15, 23, 42, .08);
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  a { color: #0369a1; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  img, svg { max-width: 100%; }
+
+  .hero { position: relative; overflow: hidden; background: radial-gradient(900px 420px at 82% 10%, rgba(34,197,94,.28), transparent 60%), radial-gradient(800px 420px at 12% 90%, rgba(14,165,233,.26), transparent 60%), linear-gradient(135deg,#071a12 0%,#0b2233 55%,#101b3a 100%); color: #f8fafc; padding: 56px 24px 64px; }
+  .hero::after { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size: 42px 42px; mask-image: linear-gradient(to bottom, black, transparent 85%); pointer-events: none; }
+  .hero-inner { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 1fr 260px; gap: 40px; align-items: center; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; color: #86efac; border: 1px solid rgba(134,239,172,.35); background: rgba(34,197,94,.12); padding: 6px 12px; border-radius: 999px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.18); }
+  .hero h1 { font-size: clamp(34px, 5vw, 58px); line-height: 1.05; letter-spacing: -.03em; margin: 18px 0 14px; font-weight: 800; }
+  .hero h1 .grad { background: linear-gradient(90deg,#4ade80,#38bdf8 55%,#a78bfa); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p.lead { font-size: 18px; color: #cbd5e1; max-width: 720px; margin: 0 0 26px; }
+  .hero-badges { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); color: #e2e8f0; backdrop-filter: blur(6px); }
+  .mascot { text-align: center; filter: drop-shadow(0 18px 30px rgba(0,0,0,.35)); }
+  .mascot figcaption { font-size: 12px; color: #94a3b8; margin-top: 8px; }
+
+  .layout { max-width: 1180px; margin: -34px auto 0; padding: 0 24px 72px; display: grid; grid-template-columns: 238px minmax(0,1fr); gap: 34px; align-items: start; }
+  .toc { position: sticky; top: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 16px; max-height: calc(100vh - 40px); overflow: auto; }
+  .toc strong { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px 8px; }
+  .toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  .toc li { counter-increment: toc; }
+  .toc a { display: flex; gap: 9px; align-items: baseline; padding: 7px 9px; border-radius: 9px; color: var(--ink-2); font-size: 14px; line-height: 1.35; }
+  .toc a::before { content: counter(toc, decimal-leading-zero); font-family: var(--mono); font-size: 10px; color: var(--brand); font-weight: 700; }
+  .toc a:hover { background: var(--surface-2); text-decoration: none; color: var(--ink); }
+
+  .content { min-width: 0; }
+  .section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 34px 36px; margin: 0 0 22px; }
+  .section > h2 { display: flex; align-items: center; gap: 12px; font-size: 25px; letter-spacing: -.02em; margin: 0 0 6px; line-height: 1.2; }
+  .num { flex: 0 0 auto; display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; font-family: var(--mono); font-size: 13px; font-weight: 700; color: #fff; background: linear-gradient(135deg,var(--brand),var(--brand-2)); box-shadow: 0 6px 14px rgba(14,165,233,.28); }
+  .sub { color: var(--muted); margin: 0 0 22px 48px; font-size: 15px; }
+  h3 { font-size: 17px; margin: 28px 0 10px; letter-spacing: -.01em; }
+  h4 { font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 22px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; }
+  li { margin: 4px 0; }
+
+  .grid { display: grid; gap: 16px; }
+  .grid.cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .grid.cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .grid.cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .card { background: linear-gradient(180deg,#ffffff,#fbfdff); border: 1px solid var(--line); border-radius: 13px; padding: 16px 17px; position: relative; }
+  .card h5 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+  .card .ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 10px; background: var(--surface-2); color: var(--brand-ink); font-family: var(--mono); font-weight: 700; font-size: 13px; }
+  .card.tint-green { border-top: 3px solid var(--brand); }
+  .card.tint-blue { border-top: 3px solid var(--brand-2); }
+  .card.tint-purple { border-top: 3px solid var(--purple); }
+  .card.tint-amber { border-top: 3px solid var(--accent); }
+
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+  .badge.ok { background: #dcfce7; color: #166534; }
+  .badge.wip { background: #fef3c7; color: #92400e; }
+  .badge.plan { background: #e0e7ff; color: #3730a3; }
+
+  .callout { display: grid; grid-template-columns: 34px 1fr; gap: 13px; padding: 15px 17px; border-radius: 12px; border: 1px solid; margin: 18px 0; font-size: 14px; }
+  .callout .mark { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-family: var(--mono); }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout.info { background: #eff6ff; border-color: #bfdbfe; }
+  .callout.info .mark { background: #dbeafe; color: #1d4ed8; }
+  .callout.warn { background: #fffbeb; border-color: #fde68a; }
+  .callout.warn .mark { background: #fef3c7; color: #b45309; }
+  .callout.ok { background: #f0fdf4; border-color: #bbf7d0; }
+  .callout.ok .mark { background: #dcfce7; color: #15803d; }
+  .callout.danger { background: #fef2f2; border-color: #fecaca; }
+  .callout.danger .mark { background: #fee2e2; color: #b91c1c; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; margin: 14px 0 18px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 560px; }
+  thead th { text-align: left; background: #f1f5fb; color: var(--ink-2); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 10px 13px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  tbody td { padding: 10px 13px; border-bottom: 1px solid #eef2f8; vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:nth-child(even) { background: #fbfdff; }
+  code { font-family: var(--mono); font-size: .88em; background: #eef3fb; border: 1px solid #dde7f3; padding: 1px 5px; border-radius: 5px; color: #0f3b66; white-space: nowrap; }
+  pre { background: #0b1727; color: #d7e4f5; border-radius: 12px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; margin: 14px 0 18px; border: 1px solid #13253d; }
+  pre code { background: none; border: 0; padding: 0; color: inherit; white-space: pre; }
+  pre .c { color: #6b8ab0; }
+  pre .k { color: #7dd3fc; }
+  pre .s { color: #86efac; }
+
+  .diagram { border: 1px solid var(--line); border-radius: 14px; background: radial-gradient(600px 240px at 20% 0%, #f0f9ff, transparent 70%), #fbfdff; padding: 16px; margin: 16px 0 10px; }
+  .diagram svg { display: block; width: 100%; height: auto; }
+  .diagram figcaption { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 8px; }
+
+  .steps { list-style: none; padding: 0; counter-reset: step; margin: 14px 0 18px; }
+  .steps li { counter-increment: step; position: relative; padding: 11px 0 11px 46px; border-bottom: 1px dashed var(--line); font-size: 14px; }
+  .steps li:last-child { border-bottom: 0; }
+  .steps li::before { content: counter(step); position: absolute; left: 0; top: 9px; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: #e0f2fe; color: #075985; font-family: var(--mono); font-weight: 700; font-size: 12px; }
+
+  .filetree { font-family: var(--mono); font-size: 12.5px; line-height: 1.75; background: #f8fbff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; overflow-x: auto; margin: 14px 0 18px; color: #334155; }
+  .filetree .dir { color: #0f766e; font-weight: 700; }
+  .filetree .note { color: #94a3b8; }
+
+  .linkgrid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .linkcard { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); border-radius: 12px; padding: 13px 15px; background: #fbfdff; transition: border-color .15s, transform .15s; }
+  .linkcard:hover { border-color: #93c5fd; transform: translateY(-1px); text-decoration: none; }
+  .linkcard .lico { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--surface-2); color: #0369a1; font-weight: 800; font-family: var(--mono); font-size: 13px; }
+  .linkcard b { display: block; font-size: 14px; color: var(--ink); }
+  .linkcard span { display: block; font-size: 12.5px; color: var(--muted); }
+
+  .kv { display: grid; grid-template-columns: 170px 1fr; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 14px 0 18px; }
+  .kv > div { padding: 10px 14px; border-bottom: 1px solid #eef2f8; font-size: 13.5px; }
+  .kv > div:nth-child(odd) { background: #f7fafd; font-weight: 600; color: var(--ink-2); }
+  .kv > div:nth-last-child(-n+2) { border-bottom: 0; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin: 18px 0 4px; }
+  .stat { background: linear-gradient(180deg,#fff,#f4f9ff); border: 1px solid var(--line); border-radius: 13px; padding: 15px; text-align: center; }
+  .stat .v { font-size: 24px; font-weight: 800; letter-spacing: -.03em; color: var(--brand-ink); }
+  .stat .l { font-size: 12px; color: var(--muted); }
+
+  .footer { max-width: 1180px; margin: 0 auto; padding: 26px 24px 48px; color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; border-top: 1px solid var(--line); }
+
+  @media (max-width: 980px) {
+    .hero-inner { grid-template-columns: 1fr; }
+    .mascot { display: none; }
+    .layout { grid-template-columns: 1fr; margin-top: -18px; }
+    .toc { position: static; max-height: none; }
+    .grid.cols-3, .grid.cols-4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .stat-row { grid-template-columns: repeat(2,1fr); }
+  }
+  @media (max-width: 640px) {
+    .section { padding: 26px 20px; }
+    .grid.cols-2, .grid.cols-3, .grid.cols-4, .linkgrid { grid-template-columns: 1fr; }
+    .kv { grid-template-columns: 1fr; }
+    .sub { margin-left: 0; }
+  }
+  @media print {
+    body { background: #fff; }
+    .toc { display: none; }
+    .layout { grid-template-columns: 1fr; margin: 0; padding: 0 16px; }
+    .section { box-shadow: none; break-inside: avoid; border-color: #ccc; }
+    .hero { background: #0f172a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <span class="eyebrow"><span class="dot"></span> Documentação técnica · MVP 2026</span>
+      <h1>FitConecta<span class="grad">+</span><br />Arquitetura &amp; Recursos</h1>
+      <p class="lead">
+        Plataforma que conecta profissionais autônomos de educação física a clientes.
+        Este documento descreve o produto, a arquitetura implementada, as tecnologias
+        utilizadas, os fluxos críticos e a infraestrutura de desenvolvimento e produção.
+      </p>
+      <div class="hero-badges">
+        <span class="chip">Go 1.26</span>
+        <span class="chip">Next.js 16</span>
+        <span class="chip">React 19</span>
+        <span class="chip">PostgreSQL 16</span>
+        <span class="chip">Neon</span>
+        <span class="chip">Fly.io</span>
+      </div>
+    </div>
+    <figure class="mascot">
+      <svg viewBox="0 0 220 220" width="220" height="220" role="img" aria-label="Mascote tucano com faixa na testa">
+        <defs>
+          <radialGradient id="mascotBg" cx="35%" cy="25%" r="80%">
+            <stop offset="0" stop-color="#22c55e" stop-opacity=".55" />
+            <stop offset="55%" stop-color="#0ea5e9" stop-opacity=".22" />
+            <stop offset="100%" stop-color="#0b1727" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+        <circle cx="110" cy="110" r="104" fill="url(#mascotBg)" />
+        <ellipse cx="110" cy="146" rx="47" ry="52" fill="#0b1220" />
+        <ellipse cx="110" cy="156" rx="31" ry="38" fill="#fff7ed" />
+        <path d="M67 132 q-16 22 3 43 q12 -18 18 -35 z" fill="#111827" />
+        <circle cx="108" cy="86" r="37" fill="#0b1220" />
+        <circle cx="122" cy="82" r="14" fill="#f8fafc" />
+        <circle cx="124" cy="83" r="6.5" fill="#0b1220" />
+        <circle cx="126" cy="81" r="2" fill="#f8fafc" />
+        <path d="M128 92 q45 4 50 27 q-12 16 -46 7 z" fill="#f59e0b" />
+        <path d="M133 103 q30 4 35 16 q-12 9 -32 4 z" fill="#fb923c" />
+        <path d="M72 77 q37 -16 74 0 l-4 11 q-33 -11 -66 0 z" fill="#22c55e" />
+        <path d="M72 77 q37 -16 74 0" fill="none" stroke="#16a34a" stroke-width="2" />
+        <path d="M96 197 l-7 10 h14 z" fill="#f59e0b" />
+        <path d="M124 197 l-7 10 h14 z" fill="#f59e0b" />
+      </svg>
+      <figcaption>Tucano com faixa — mascote do produto</figcaption>
+    </figure>
+  </div>
+</header>
+
+<div class="layout">
+
+  <nav class="toc" aria-label="Sumário">
+    <strong>Sumário</strong>
+    <ol>
+      <li><a href="#visao">Visão geral e produto</a></li>
+      <li><a href="#arquitetura">Arquitetura da solução</a></li>
+      <li><a href="#stack">Stack tecnológica</a></li>
+      <li><a href="#backend">Backend · Core API</a></li>
+      <li><a href="#frontend">Frontend · Next.js</a></li>
+      <li><a href="#auth">Autenticação e segurança</a></li>
+      <li><a href="#banco">Banco de dados</a></li>
+      <li><a href="#midia">Mídia e Object Storage</a></li>
+      <li><a href="#infra">Infraestrutura e deploy</a></li>
+      <li><a href="#local">Desenvolvimento local</a></li>
+      <li><a href="#adr">Decisões (ADRs)</a></li>
+      <li><a href="#links">Recursos e links</a></li>
+      <li><a href="#roadmap">Roadmap e próximos passos</a></li>
+    </ol>
+  </nav>
+
+  <main class="content">
+
+    <section class="section" id="visao">
+      <h2><span class="num">01</span> Visão geral e produto</h2>
+      <p class="sub">O que é o FitConecta+, para quem existe e como gera valor.</p>
+
+      <p>
+        O <strong>FitConecta+</strong> é um marketplace que conecta <strong>profissionais autônomos
+        de educação física</strong> a <strong>clientes</strong> que buscam treino com acompanhamento.
+        O profissional mantém um perfil público com modalidades, bairros de atuação, preço e
+        disponibilidade real. O cliente encontra, agenda e paga em um fluxo único. A plataforma
+        retém <strong>10% do valor de cada sessão</strong>; os outros 90% são destinados ao profissional.
+      </p>
+
+      <div class="grid cols-3">
+        <div class="card tint-green">
+          <div class="ico">P</div>
+          <h5>Profissional autônomo</h5>
+          <p>Cadastro gratuito, vitrine pública, agenda organizada e recebimento garantido. Perfil exclusivo para pessoa física (autônomo).</p>
+        </div>
+        <div class="card tint-blue">
+          <div class="ico">C</div>
+          <h5>Cliente</h5>
+          <p>Busca por modalidade, cidade e bairro; visualiza horários livres; agenda e paga com confirmação atrelada ao pagamento.</p>
+        </div>
+        <div class="card tint-purple">
+          <div class="ico">+</div>
+          <h5>Plataforma</h5>
+          <p>Intermedeia a transação, processa o split 90/10, garante a exclusividade do horário e oferece painel de gestão.</p>
+        </div>
+      </div>
+
+      <h3>Diferencial do produto</h3>
+      <div class="callout ok">
+        <div class="mark">✓</div>
+        <div>
+          <p><strong>Disponibilidade real + pagamento integrado.</strong> O horário entra como
+          pré-reserva (<code>pending_payment</code>) e só é confirmado na agenda após a confirmação
+          do pagamento. O banco impede sobreposição de horários por constraint de exclusão,
+          eliminando dupla reserva mesmo sob concorrência.</p>
+        </div>
+      </div>
+
+      <h3>Escopo do MVP</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Área</th><th>Entregue / em desenvolvimento</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Autenticação</td><td>Cadastro, login e logout com JWT em cookie HttpOnly; roles <code>client</code>, <code>professional</code> e <code>admin</code>.</td><td><span class="badge ok">Implementado</span></td></tr>
+            <tr><td>Perfil profissional</td><td>Dados públicos, especialidades, bairros de atuação, avatar e galeria (até 3 fotos).</td><td><span class="badge ok">Implementado</span></td></tr>
+            <tr><td>Disponibilidade</td><td>Regras semanais recorrentes, exceções pontuais e geração de slots livres.</td><td><span class="badge ok">Implementado</span></td></tr>
+            <tr><td>Agendamento</td><td>Criação com pré-reserva, listagem, cancelamento e confirmação de pagamento.</td><td><span class="badge ok">Implementado</span></td></tr>
+            <tr><td>Pagamento / split</td><td>Modelo de dados e regra de 10%; integração com gateway/PSP real ainda pendente.</td><td><span class="badge wip">Parcial</span></td></tr>
+            <tr><td>App mobile</td><td>Flutter previsto na visão de produto; foco atual é a Web App (Next.js).</td><td><span class="badge plan">Planejado</span></td></tr>
+            <tr><td>Push notifications</td><td>Tabela <code>device_tokens</code> preparada; envio via FCM em fase futura.</td><td><span class="badge plan">Planejado</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat"><div class="v">10%</div><div class="l">comissão da plataforma</div></div>
+        <div class="stat"><div class="v">90%</div><div class="l">repasse ao profissional</div></div>
+        <div class="stat"><div class="v">2</div><div class="l">apps no Fly.io</div></div>
+        <div class="stat"><div class="v">3</div><div class="l">fotos por galeria</div></div>
+      </div>
+    </section>
+
+    <section class="section" id="arquitetura">
+      <h2><span class="num">02</span> Arquitetura da solução</h2>
+      <p class="sub">Como os componentes se conectam, do navegador ao banco e ao storage.</p>
+
+      <figure class="diagram">
+        <svg viewBox="0 0 1000 500" role="img" aria-label="Diagrama de arquitetura de alto nível">
+          <defs>
+            <linearGradient id="gradFront" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0ea5e9" /><stop offset="1" stop-color="#6366f1" /></linearGradient>
+            <linearGradient id="gradApi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#16a34a" /><stop offset="1" stop-color="#0d9488" /></linearGradient>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#64748b" /></marker>
+            <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#0284c7" /></marker>
+          </defs>
+
+          <rect x="18" y="170" width="168" height="132" rx="14" fill="#ffffff" stroke="#cbd5e1" />
+          <rect x="18" y="170" width="168" height="34" rx="14" fill="#334155" />
+          <rect x="18" y="190" width="168" height="14" fill="#334155" />
+          <text x="102" y="192" text-anchor="middle" font-size="13" font-weight="700" fill="#f8fafc" font-family="sans-serif">Usuários</text>
+          <text x="102" y="230" text-anchor="middle" font-size="12" fill="#475569" font-family="sans-serif">Clientes</text>
+          <text x="102" y="251" text-anchor="middle" font-size="12" fill="#475569" font-family="sans-serif">Profissionais</text>
+          <text x="102" y="278" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="sans-serif">Navegador / Mobile</text>
+
+          <rect x="236" y="70" width="252" height="340" rx="16" fill="#ffffff" stroke="#bae6fd" />
+          <rect x="236" y="70" width="252" height="48" rx="16" fill="url(#gradFront)" />
+          <rect x="236" y="102" width="252" height="16" fill="url(#gradFront)" />
+          <text x="362" y="100" text-anchor="middle" font-size="14" font-weight="700" fill="#fff" font-family="sans-serif">Next.js 16 · Web App</text>
+          <text x="362" y="145" text-anchor="middle" font-size="12" fill="#0369a1" font-weight="600" font-family="sans-serif">frontend-fit-conecta.fly.dev</text>
+          <rect x="256" y="164" width="212" height="38" rx="8" fill="#eff6ff" stroke="#dbeafe" />
+          <text x="362" y="188" text-anchor="middle" font-size="12" fill="#1e3a8a" font-family="sans-serif">Landing / SEO · Auth /app</text>
+          <rect x="256" y="212" width="212" height="44" rx="8" fill="#f0fdf4" stroke="#bbf7d0" />
+          <text x="362" y="231" text-anchor="middle" font-size="11.5" fill="#166534" font-weight="700" font-family="sans-serif">proxy.ts</text>
+          <text x="362" y="247" text-anchor="middle" font-size="10.5" fill="#15803d" font-family="sans-serif">guarda /app/* + rewrite /api/*</text>
+          <rect x="256" y="266" width="212" height="38" rx="8" fill="#faf5ff" stroke="#e9d5ff" />
+          <text x="362" y="290" text-anchor="middle" font-size="12" fill="#6b21a8" font-family="sans-serif">lib/api.ts (same-origin)</text>
+          <rect x="256" y="314" width="212" height="38" rx="8" fill="#f8fafc" stroke="#e2e8f0" />
+          <text x="362" y="338" text-anchor="middle" font-size="12" fill="#475569" font-family="sans-serif">Tailwind CSS 4 · React 19</text>
+          <text x="362" y="382" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="sans-serif">Output standalone · porta 3000</text>
+
+          <rect x="536" y="70" width="228" height="340" rx="16" fill="#ffffff" stroke="#bbf7d0" />
+          <rect x="536" y="70" width="228" height="48" rx="16" fill="url(#gradApi)" />
+          <rect x="536" y="102" width="228" height="16" fill="url(#gradApi)" />
+          <text x="650" y="100" text-anchor="middle" font-size="14" font-weight="700" fill="#fff" font-family="sans-serif">Core API · Go</text>
+          <text x="650" y="145" text-anchor="middle" font-size="12" fill="#047857" font-weight="600" font-family="sans-serif">backend-fit-conecta.fly.dev</text>
+          <rect x="556" y="164" width="188" height="34" rx="8" fill="#f0fdf4" stroke="#bbf7d0" />
+          <text x="650" y="186" text-anchor="middle" font-size="12" fill="#166534" font-family="sans-serif">chi · middleware · CORS</text>
+          <rect x="556" y="206" width="188" height="34" rx="8" fill="#f0fdf4" stroke="#bbf7d0" />
+          <text x="650" y="228" text-anchor="middle" font-size="12" fill="#166534" font-family="sans-serif">auth · JWT · Argon2id</text>
+          <rect x="556" y="248" width="188" height="34" rx="8" fill="#f0fdf4" stroke="#bbf7d0" />
+          <text x="650" y="270" text-anchor="middle" font-size="12" fill="#166534" font-family="sans-serif">profiles · availability</text>
+          <rect x="556" y="290" width="188" height="34" rx="8" fill="#f0fdf4" stroke="#bbf7d0" />
+          <text x="650" y="312" text-anchor="middle" font-size="12" fill="#166534" font-family="sans-serif">appointments · payments</text>
+          <rect x="556" y="332" width="188" height="34" rx="8" fill="#f0fdf4" stroke="#bbf7d0" />
+          <text x="650" y="354" text-anchor="middle" font-size="12" fill="#166534" font-family="sans-serif">media presign</text>
+          <text x="650" y="392" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="sans-serif">Health /health · porta 8080</text>
+
+          <rect x="808" y="70" width="174" height="146" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+          <rect x="808" y="70" width="174" height="36" rx="14" fill="#1e293b" />
+          <rect x="808" y="92" width="174" height="14" fill="#1e293b" />
+          <text x="895" y="94" text-anchor="middle" font-size="12" font-weight="700" fill="#f8fafc" font-family="sans-serif">PostgreSQL 16</text>
+          <text x="895" y="132" text-anchor="middle" font-size="12" fill="#475569" font-family="sans-serif">Neon (managed)</text>
+          <text x="895" y="154" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="sans-serif">pgx · btree_gist</text>
+          <text x="895" y="176" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="sans-serif">SSL · PgBouncer</text>
+          <text x="895" y="198" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="sans-serif">schemas 0001–0008</text>
+
+          <rect x="808" y="234" width="174" height="146" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+          <rect x="808" y="234" width="174" height="36" rx="14" fill="#0f766e" />
+          <rect x="808" y="256" width="174" height="14" fill="#0f766e" />
+          <text x="895" y="258" text-anchor="middle" font-size="12" font-weight="700" fill="#f8fafc" font-family="sans-serif">Object Storage</text>
+          <text x="895" y="296" text-anchor="middle" font-size="12" fill="#475569" font-family="sans-serif">Neon / S3-compatível</text>
+          <text x="895" y="318" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="sans-serif">bucket public_read</text>
+          <text x="895" y="340" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="sans-serif">upload presigned (SigV4)</text>
+          <text x="895" y="362" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="sans-serif">avatar + galeria</text>
+
+          <rect x="536" y="430" width="228" height="48" rx="12" fill="#fffbeb" stroke="#fde68a" stroke-dasharray="5 4" />
+          <text x="650" y="450" text-anchor="middle" font-size="12" font-weight="700" fill="#92400e" font-family="sans-serif">Gateway / PSP</text>
+          <text x="650" y="466" text-anchor="middle" font-size="10.5" fill="#b45309" font-family="sans-serif">Pix · cartão · split (fase futura)</text>
+
+          <line x1="186" y1="220" x2="232" y2="220" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+          <line x1="488" y1="158" x2="532" y2="158" stroke="#0284c7" stroke-width="2.4" marker-end="url(#arrowBlue)" />
+          <text x="510" y="148" text-anchor="middle" font-size="10.5" fill="#0369a1" font-weight="700" font-family="sans-serif">/api/*</text>
+          <text x="510" y="188" text-anchor="middle" font-size="10" fill="#64748b" font-family="sans-serif">rewrite</text>
+          <line x1="764" y1="143" x2="804" y2="143" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+          <line x1="764" y1="307" x2="804" y2="307" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+          <line x1="650" y1="410" x2="650" y2="426" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrow)" />
+          <text x="895" y="410" text-anchor="middle" font-size="10.5" fill="#94a3b8" font-family="sans-serif">HTTPS · SigV4</text>
+        </svg>
+        <figcaption>Arquitetura de alto nível: browser → Next.js (proxy same-origin) → Core API → Neon Postgres e Object Storage.</figcaption>
+      </figure>
+
+      <h3>Camadas e responsabilidades</h3>
+      <div class="grid cols-2">
+        <div class="card"><h5>Frontend · Next.js 16</h5><p>Entrega a landing pública, o fluxo de autenticação e as áreas logadas de cliente e profissional. O <code>proxy.ts</code> concentra a guarda de rotas e o encaminhamento same-origin da API. Consome a API por caminhos relativos <code>/api/v1/*</code>.</p></div>
+        <div class="card"><h5>Backend · Core API (Go)</h5><p>Centraliza regras de negócio, autenticação, disponibilidade, agendamentos, pagamentos e emissão de URLs pré-assinadas de mídia. Expõe REST em <code>/api/v1</code> e healthcheck em <code>/health</code>.</p></div>
+        <div class="card"><h5>Banco · PostgreSQL 16 (Neon)</h5><p>Fonte de verdade transacional. Usa <code>timestamptz</code>, UUIDs, enums e a extensão <code>btree_gist</code> para impedir sobreposição de horários.</p></div>
+        <div class="card"><h5>Storage · S3-compatível (Neon)</h5><p>Armazena avatares e galeria. Uploads vão do navegador direto ao bucket via URL pré-assinada; o servidor Go não trafega binários. Leitura pública para as imagens do perfil.</p></div>
+      </div>
+
+      <h3>Decisão central: proxy same-origin</h3>
+      <div class="callout warn">
+        <div class="mark">!</div>
+        <div>
+          <p>No Fly.io, <code>frontend-fit-conecta.fly.dev</code> e <code>backend-fit-conecta.fly.dev</code>
+          são <strong>sites distintos</strong> (o domínio <code>fly.dev</code> é public suffix). Um cookie
+          gravado pelo backend não é enviado ao frontend, e <code>SameSite=Strict</code> bloqueia o
+          envio cross-site. A solução foi o <strong>proxy same-origin</strong>: o navegador chama
+          <code>/api/*</code> no próprio frontend e o Next reescreve para
+          <code>BACKEND_PROXY_URL</code>. Assim o cookie <code>fitconecta_jwt</code> fica no domínio
+          do frontend e a guarda de <code>/app/*</code> funciona.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="stack">
+      <h2><span class="num">03</span> Stack tecnológica</h2>
+      <p class="sub">Tecnologias efetivamente usadas no código atual.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Camada</th><th>Tecnologia</th><th>Versão</th><th>Papel</th></tr></thead>
+          <tbody>
+            <tr><td>Linguagem backend</td><td><a href="https://go.dev/" target="_blank" rel="noopener">Go</a></td><td>1.26</td><td>Core API, regras de negócio e HTTP</td></tr>
+            <tr><td>Roteamento HTTP</td><td><a href="https://github.com/go-chi/chi" target="_blank" rel="noopener">chi v5</a> + <code>net/http</code></td><td>5.3</td><td>Rotas, grupos e middleware</td></tr>
+            <tr><td>Acesso ao banco</td><td><a href="https://github.com/jackc/pgx" target="_blank" rel="noopener">pgx v5</a></td><td>5.11</td><td>Pool de conexões e SQL parametrizado</td></tr>
+            <tr><td>Autenticação</td><td><a href="https://github.com/golang-jwt/jwt" target="_blank" rel="noopener">golang-jwt v5</a></td><td>5.3</td><td>Emissão e validação de JWT</td></tr>
+            <tr><td>Senhas</td><td><a href="https://pkg.go.dev/golang.org/x/crypto/argon2" target="_blank" rel="noopener">Argon2id</a></td><td>x/crypto</td><td>Hash de senhas resistente a GPU</td></tr>
+            <tr><td>Object Storage</td><td><a href="https://github.com/minio/minio-go" target="_blank" rel="noopener">minio-go v7</a></td><td>7.4</td><td>Cliente S3 e URLs pré-assinadas</td></tr>
+            <tr><td>Logs</td><td><code>log/slog</code></td><td>stdlib</td><td>Logs estruturados em JSON</td></tr>
+            <tr><td>Frontend</td><td><a href="https://nextjs.org/docs" target="_blank" rel="noopener">Next.js</a></td><td>16.4</td><td>App Router, SSR, proxy e standalone</td></tr>
+            <tr><td>UI</td><td><a href="https://react.dev/" target="_blank" rel="noopener">React</a> + <a href="https://tailwindcss.com/" target="_blank" rel="noopener">Tailwind CSS</a></td><td>19.3 / 4</td><td>Componentes e estilos utilitários</td></tr>
+            <tr><td>Tipagem frontend</td><td><a href="https://www.typescriptlang.org/" target="_blank" rel="noopener">TypeScript</a></td><td>5</td><td>Type-safety em todo o app</td></tr>
+            <tr><td>Banco</td><td><a href="https://www.postgresql.org/docs/" target="_blank" rel="noopener">PostgreSQL</a> no <a href="https://neon.tech/docs" target="_blank" rel="noopener">Neon</a></td><td>16</td><td>Persistência relacional gerenciada</td></tr>
+            <tr><td>Object Storage</td><td><a href="https://neon.tech" target="_blank" rel="noopener">Neon Object Storage</a></td><td>S3</td><td>Avatares e galeria, path-style + SigV4</td></tr>
+            <tr><td>Ambiente local</td><td><a href="https://docs.docker.com/compose/" target="_blank" rel="noopener">Docker Compose</a></td><td>—</td><td>Web, API e storage em containers</td></tr>
+            <tr><td>Deploy</td><td><a href="https://fly.io/docs/" target="_blank" rel="noopener">Fly.io</a></td><td>região <code>gru</code></td><td>Dois apps independentes com HTTPS</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid cols-4">
+        <div class="card tint-green"><div class="ico">Go</div><h5>Simplicidade e performance</h5><p>Binário estático, inicialização rápida e baixo consumo de memória.</p></div>
+        <div class="card tint-blue"><div class="ico">N</div><h5>Next.js standalone</h5><p>Imagem enxuta de produção servida por <code>node server.js</code>.</p></div>
+        <div class="card tint-purple"><div class="ico">P</div><h5>Postgres robusto</h5><p>Constraints e transações garantem integridade do agendamento.</p></div>
+        <div class="card tint-amber"><div class="ico">S3</div><h5>Uploads diretos</h5><p>URLs pré-assinadas reduzem carga da API e custo de egress.</p></div>
+      </div>
+    </section>
+
+    <section class="section" id="backend">
+      <h2><span class="num">04</span> Backend · Core API</h2>
+      <p class="sub">Organização do código Go, rotas expostas e configuração por ambiente.</p>
+
+      <h3>Estrutura do módulo</h3>
+      <div class="filetree">
+<span class="dir">backend/core-api/</span>
+├── <span class="dir">cmd/api/</span>            <span class="note"># main.go: bootstrap, rotas, graceful shutdown</span>
+├── <span class="dir">internal/</span>
+│   ├── <span class="dir">auth/</span>            <span class="note"># register/login/logout/me, JWT, cookie</span>
+│   ├── <span class="dir">professionals/</span>   <span class="note"># perfil, especialidades, bairros, mídia</span>
+│   ├── <span class="dir">availability/</span>    <span class="note"># regras semanais, exceções, slots</span>
+│   ├── <span class="dir">appointments/</span>    <span class="note"># pré-reserva, confirmação, cancelamento</span>
+│   └── <span class="dir">platform/</span>
+│       ├── <span class="dir">config/</span>      <span class="note"># env, detecção de Neon</span>
+│       ├── <span class="dir">db/</span>          <span class="note"># pool pgx</span>
+│       ├── <span class="dir">httputil/</span>    <span class="note"># respostas JSON padronizadas</span>
+│       ├── <span class="dir">middleware/</span>  <span class="note"># auth JWT, role, logger</span>
+│       └── <span class="dir">storage/</span>     <span class="note"># S3, presign, CORS, EnsureBucket</span>
+├── <span class="dir">migrations/</span>          <span class="note"># 00001 schema inicial</span>
+└── Dockerfile
+      </div>
+
+      <h3>Endpoints da API</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Método</th><th>Rota</th><th>Descrição</th><th>Acesso</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET</code></td><td><code>/health</code></td><td>Healthcheck com status e ambiente</td><td>Público</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/v1/auth/register</code></td><td>Cria conta e emite cookie de sessão</td><td>Público</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/v1/auth/login</code></td><td>Autentica e grava <code>fitconecta_jwt</code></td><td>Público</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/v1/auth/logout</code></td><td>Expira o cookie de sessão</td><td>Público</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/auth/me</code></td><td>Retorna o usuário autenticado</td><td>JWT</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/professionals</code></td><td>Lista e filtra profissionais</td><td>Público</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/professionals/{id}</code></td><td>Detalhe do perfil público</td><td>Público</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/professionals/{id}/slots</code></td><td>Horários livres do profissional</td><td>Público</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/specialties</code></td><td>Lista de modalidades</td><td>Público</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/neighborhoods</code></td><td>Bairros por cidade/UF</td><td>Público</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/professionals/me/profile</code></td><td>Perfil do profissional logado</td><td>Profissional</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/api/v1/professionals/me/profile</code></td><td>Atualiza perfil</td><td>Profissional</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/api/v1/professionals/me/specialties</code></td><td>Define especialidades</td><td>Profissional</td></tr>
+            <tr><td><code>GET</code>/<code>PUT</code></td><td><code>/api/v1/professionals/me/neighborhoods</code></td><td>Consulta/define bairros de atuação</td><td>Profissional</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/v1/professionals/me/media/presign</code></td><td>Gera URL pré-assinada de upload</td><td>Profissional</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/api/v1/professionals/me/avatar</code></td><td>Atualiza avatar</td><td>Profissional</td></tr>
+            <tr><td><code>GET</code>/<code>POST</code></td><td><code>/api/v1/professionals/me/photos</code></td><td>Lista/adiciona fotos da galeria</td><td>Profissional</td></tr>
+            <tr><td><code>DELETE</code></td><td><code>/api/v1/professionals/me/photos/{id}</code></td><td>Remove foto da galeria</td><td>Profissional</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/availability/rules</code></td><td>Lista regras semanais</td><td>Profissional</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/v1/availability/rules</code></td><td>Cria regra semanal</td><td>Profissional</td></tr>
+            <tr><td><code>DELETE</code></td><td><code>/api/v1/availability/rules/{id}</code></td><td>Remove regra</td><td>Profissional</td></tr>
+            <tr><td><code>GET</code>/<code>POST</code></td><td><code>/api/v1/availability/exceptions</code></td><td>Lista/cria exceções</td><td>Profissional</td></tr>
+            <tr><td><code>DELETE</code></td><td><code>/api/v1/availability/exceptions/{id}</code></td><td>Remove exceção</td><td>Profissional</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/v1/appointments</code></td><td>Cria agendamento em pré-reserva</td><td>Cliente</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/appointments</code></td><td>Lista agendamentos do usuário</td><td>JWT</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/appointments/{id}</code></td><td>Detalhe do agendamento</td><td>JWT</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/v1/appointments/{id}/cancel</code></td><td>Cancela agendamento</td><td>JWT</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/v1/appointments/{id}/confirm-payment</code></td><td>Confirma pagamento e agenda</td><td>JWT</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Middlewares e operação</h3>
+      <ul>
+        <li><strong>RequestID + RealIP + Logger + Recoverer</strong> do chi, com logs estruturados em JSON via <code>log/slog</code>.</li>
+        <li><strong>CORS restritivo</strong>: origens explícitas em <code>ALLOWED_ORIGINS</code> (nunca <code>*</code>), com <code>AllowCredentials</code> para o cookie de sessão.</li>
+        <li><strong>AuthMiddleware</strong> valida o JWT (header ou cookie) e injeta o usuário no contexto; <code>RequireRole</code> restringe rotas por papel.</li>
+        <li><strong>Graceful shutdown</strong> em <code>SIGINT</code>/<code>SIGTERM</code> com timeout de 10 s.</li>
+        <li><strong>Timeouts</strong> de leitura/escrita de 15 s e idle de 60 s.</li>
+      </ul>
+
+      <h4>Variáveis de ambiente principais</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Variável</th><th>Uso</th></tr></thead>
+          <tbody>
+            <tr><td><code>PORT</code></td><td>Porta HTTP (padrão 8080)</td></tr>
+            <tr><td><code>ENV</code></td><td><code>production</code> ou <code>development</code></td></tr>
+            <tr><td><code>DATABASE_URL</code></td><td>URL do PostgreSQL/Neon</td></tr>
+            <tr><td><code>JWT_SECRET</code> / <code>JWT_EXPIRATION_HOURS</code></td><td>Assinatura e validade do token público</td></tr>
+            <tr><td><code>ADMIN_JWT_SECRET</code> / <code>ADMIN_JWT_EXPIRATION_HOURS</code></td><td>Assinatura e validade exclusivas do painel <code>/admin</code></td></tr>
+            <tr><td><code>ALLOWED_ORIGINS</code></td><td>Origens CORS separadas por vírgula</td></tr>
+            <tr><td><code>COOKIE_SECURE</code></td><td><code>true</code> em HTTPS, <code>false</code> em dev</td></tr>
+            <tr><td><code>STORAGE_*</code></td><td>Endpoint, região, credenciais, bucket, path-style, presign</td></tr>
+            <tr><td><code>AWS_ENDPOINT_URL_S3</code>, <code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code></td><td>Injetadas pelo Neon; ativam a detecção automática</td></tr>
+            <tr><td><code>STORAGE_PROVIDER</code></td><td><code>minio</code> local ou <code>neon</code> em produção</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="frontend">
+      <h2><span class="num">05</span> Frontend · Next.js</h2>
+      <p class="sub">Páginas, guarda de rotas e a camada de acesso à API.</p>
+
+      <h3>Mapa de páginas</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Rota</th><th>Área</th><th>Descrição</th></tr></thead>
+          <tbody>
+            <tr><td><code>/</code></td><td>Landing / SEO</td><td>Apresentação pública e captação</td></tr>
+            <tr><td><code>/auth/login</code></td><td>Auth</td><td>Login; redireciona por role</td></tr>
+            <tr><td><code>/auth/register</code></td><td>Auth</td><td>Cadastro de cliente ou profissional</td></tr>
+            <tr><td><code>/app/client</code></td><td>Cliente</td><td>Busca e vitrine de profissionais</td></tr>
+            <tr><td><code>/app/client/profissional/[id]</code></td><td>Cliente</td><td>Perfil público, horários e agendamento</td></tr>
+            <tr><td><code>/app/client/agendamento/[professionalId]</code></td><td>Cliente</td><td>Seleção de dia, horário e tipo de aula</td></tr>
+            <tr><td><code>/app/client/agendamentos</code></td><td>Cliente</td><td>Agendamentos futuros e passados</td></tr>
+            <tr><td><code>/app/client/pagamento/[appointmentId]</code></td><td>Cliente</td><td>Checkout da sessão</td></tr>
+            <tr><td><code>/app/professional</code></td><td>Profissional</td><td>Dashboard e resumo</td></tr>
+            <tr><td><code>/app/professional/perfil</code></td><td>Profissional</td><td>Perfil, mídia, especialidades e bairros</td></tr>
+            <tr><td><code>/app/professional/disponibilidade</code></td><td>Profissional</td><td>Regras semanais e exceções</td></tr>
+            <tr><td><code>/app/professional/agendamentos</code></td><td>Profissional</td><td>Agenda e status</td></tr>
+            <tr><td><code>/app/professional/financeiro</code></td><td>Profissional</td><td>Extrato e repasses (90%)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Guarda de rotas e proxy</h3>
+      <p>O arquivo <code>frontend/proxy.ts</code> (equivalente ao middleware no Next.js 16) tem duas responsabilidades:</p>
+      <ol class="steps">
+        <li><strong>Proxy same-origin:</strong> requisições a <code>/api/*</code> são reescritas para <code>BACKEND_PROXY_URL</code>, mantendo o host do frontend.</li>
+        <li><strong>Guarda de autenticação:</strong> rotas <code>/app/*</code> exigem o cookie <code>fitconecta_jwt</code>; sem ele, redireciona para <code>/auth/login</code>.</li>
+      </ol>
+      <pre><code><span class="c">// frontend/proxy.ts</span>
+<span class="k">const</span> BACKEND_PROXY_URL = process.env.BACKEND_PROXY_URL || <span class="s">""</span>;
+
+<span class="k">export function</span> proxy(request) {
+  <span class="k">const</span> url = request.nextUrl.clone();
+
+  <span class="k">if</span> (url.pathname.startsWith(<span class="s">"/api/"</span>)) {
+    <span class="k">if</span> (BACKEND_PROXY_URL) {
+      <span class="k">const</span> target = <span class="k">new</span> URL(url.pathname + url.search, BACKEND_PROXY_URL);
+      <span class="k">return</span> NextResponse.rewrite(target);
+    }
+    <span class="k">return</span> NextResponse.next();
+  }
+
+  <span class="k">const</span> token = request.cookies.get(<span class="s">"fitconecta_jwt"</span>)?.value;
+  <span class="k">if</span> (!token) { url.pathname = <span class="s">"/auth/login"</span>; <span class="k">return</span> NextResponse.redirect(url); }
+  <span class="k">return</span> NextResponse.next();
+}
+
+<span class="k">export const</span> config = { matcher: [<span class="s">"/app/:path*"</span>, <span class="s">"/api/:path*"</span>] };</code></pre>
+
+      <div class="callout info">
+        <div class="mark">i</div>
+        <div>
+          <p>O cliente HTTP em <code>frontend/lib/api.ts</code> usa <code>BASE_URL = ""</code>, ou seja,
+          caminhos relativos <code>/api/v1/*</code> com <code>credentials: "include"</code>. Assim,
+          o mesmo código funciona em localhost (proxy direto) e em produção (proxy para o backend).</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="auth">
+      <h2><span class="num">06</span> Autenticação e segurança</h2>
+      <p class="sub">Do login até a renderização da área protegida, sem quebrar cookies entre domínios.</p>
+
+      <figure class="diagram">
+        <svg viewBox="0 0 1000 470" role="img" aria-label="Fluxo de login e sessão same-origin">
+          <defs>
+            <marker id="a2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#0369a1" /></marker>
+            <marker id="a2g" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#16a34a" /></marker>
+          </defs>
+          <g font-family="sans-serif">
+            <rect x="40" y="24" width="180" height="46" rx="10" fill="#334155" />
+            <text x="130" y="52" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">Navegador</text>
+            <rect x="290" y="24" width="190" height="46" rx="10" fill="#0ea5e9" />
+            <text x="385" y="45" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">Next.js · proxy.ts</text>
+            <text x="385" y="61" text-anchor="middle" font-size="10.5" fill="#e0f2fe">frontend-fit-conecta</text>
+            <rect x="550" y="24" width="180" height="46" rx="10" fill="#16a34a" />
+            <text x="640" y="45" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">Core API · Go</text>
+            <text x="640" y="61" text-anchor="middle" font-size="10.5" fill="#dcfce7">backend-fit-conecta</text>
+            <rect x="800" y="24" width="170" height="46" rx="10" fill="#1e293b" />
+            <text x="885" y="52" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">PostgreSQL · Neon</text>
+
+            <line x1="130" y1="70" x2="130" y2="440" stroke="#cbd5e1" stroke-dasharray="6 5" />
+            <line x1="385" y1="70" x2="385" y2="440" stroke="#bae6fd" stroke-dasharray="6 5" />
+            <line x1="640" y1="70" x2="640" y2="440" stroke="#bbf7d0" stroke-dasharray="6 5" />
+            <line x1="885" y1="70" x2="885" y2="440" stroke="#cbd5e1" stroke-dasharray="6 5" />
+
+            <line x1="130" y1="110" x2="380" y2="110" stroke="#0369a1" stroke-width="2.2" marker-end="url(#a2)" />
+            <text x="255" y="102" text-anchor="middle" font-size="11.5" fill="#0f172a" font-weight="700">1. POST /api/v1/auth/login</text>
+            <text x="255" y="126" text-anchor="middle" font-size="10.5" fill="#64748b">same-origin · credenciais</text>
+
+            <line x1="390" y1="160" x2="635" y2="160" stroke="#16a34a" stroke-width="2.2" marker-end="url(#a2g)" />
+            <text x="512" y="152" text-anchor="middle" font-size="11.5" fill="#0f172a" font-weight="700">2. rewrite → BACKEND_PROXY_URL</text>
+            <text x="512" y="176" text-anchor="middle" font-size="10.5" fill="#64748b">proxy encaminha sem mudar o host do browser</text>
+
+            <line x1="645" y1="210" x2="880" y2="210" stroke="#64748b" stroke-width="2.2" marker-end="url(#a2)" />
+            <text x="762" y="202" text-anchor="middle" font-size="11.5" fill="#0f172a" font-weight="700">3. consulta usuário + Argon2id</text>
+
+            <line x1="880" y1="255" x2="645" y2="255" stroke="#64748b" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#a2)" />
+            <text x="762" y="247" text-anchor="middle" font-size="11.5" fill="#0f172a" font-weight="700">4. usuário válido</text>
+
+            <line x1="635" y1="300" x2="390" y2="300" stroke="#16a34a" stroke-width="2.2" marker-end="url(#a2g)" />
+            <text x="512" y="292" text-anchor="middle" font-size="11.5" fill="#0f172a" font-weight="700">5. 200 + Set-Cookie fitconecta_jwt</text>
+            <text x="512" y="316" text-anchor="middle" font-size="10.5" fill="#64748b">HttpOnly · SameSite=Strict · Secure</text>
+
+            <line x1="380" y1="345" x2="135" y2="345" stroke="#0369a1" stroke-width="2.2" marker-end="url(#a2)" />
+            <text x="255" y="337" text-anchor="middle" font-size="11.5" fill="#0f172a" font-weight="700">6. cookie gravado no domínio do frontend</text>
+
+            <line x1="130" y1="390" x2="380" y2="390" stroke="#0369a1" stroke-width="2.2" marker-end="url(#a2)" />
+            <text x="255" y="382" text-anchor="middle" font-size="11.5" fill="#0f172a" font-weight="700">7. GET /app/professional (cookie)</text>
+
+            <line x1="380" y1="428" x2="135" y2="428" stroke="#16a34a" stroke-width="2.2" marker-end="url(#a2g)" />
+            <text x="255" y="420" text-anchor="middle" font-size="11.5" fill="#0f172a" font-weight="700">8. cookie válido → render 200</text>
+          </g>
+        </svg>
+        <figcaption>Fluxo de login com proxy same-origin: o cookie nasce e é lido no mesmo host.</figcaption>
+      </figure>
+
+      <h3>Mecanismos de segurança</h3>
+      <div class="grid cols-2">
+        <div class="card tint-green"><h5>Senhas</h5><p>Hash com <strong>Argon2id</strong>, parâmetros calibrados e salt único por usuário. Nunca armazenadas em texto puro.</p></div>
+        <div class="card tint-blue"><h5>Sessão web</h5><p>JWT em cookie <code>HttpOnly</code>, <code>Secure</code> em produção e <code>SameSite=Strict</code>. Logout expira o cookie com <code>MaxAge: -1</code>.</p></div>
+        <div class="card tint-purple"><h5>Autorização</h5><p>Roles <code>client</code>, <code>professional</code> e <code>admin</code>. Middleware de role protege operações sensíveis e a posse dos recursos é validada.</p></div>
+        <div class="card tint-amber"><h5>Borda e dados</h5><p>CORS restritivo com credenciais, queries parametrizadas via pgx, HTTPS forçado no Fly e segredos apenas em runtime.</p></div>
+      </div>
+
+      <div class="callout danger">
+        <div class="mark">×</div>
+        <div>
+          <p><strong>Antipadrão evitado:</strong> apontar o frontend diretamente para
+          <code>backend-*.fly.dev</code>. Nesse cenário o cookie fica no domínio do backend,
+          o proxy do frontend não o enxerga e todo acesso a <code>/app/*</code> volta para o login.
+          O proxy same-origin elimina essa classe de erro.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="banco">
+      <h2><span class="num">07</span> Banco de dados</h2>
+      <p class="sub">Modelo relacional, integridade temporal e migrações versionadas.</p>
+
+      <figure class="diagram">
+        <svg viewBox="0 0 1000 560" role="img" aria-label="Diagrama entidade-relacionamento simplificado">
+          <defs>
+            <marker id="rel" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,5 L7,2.5 z" fill="#94a3b8" /></marker>
+          </defs>
+          <g font-family="sans-serif">
+            <!-- users -->
+            <rect x="30" y="30" width="196" height="122" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="30" y="30" width="196" height="30" rx="10" fill="#0f766e" /><rect x="30" y="50" width="196" height="10" fill="#0f766e" />
+            <text x="42" y="50" font-size="12" font-weight="700" fill="#fff">users</text>
+            <text x="42" y="80" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">id (uuid, pk)</text>
+            <text x="42" y="98" font-size="10.5" font-family="monospace" fill="#475569">email (unique)</text>
+            <text x="42" y="116" font-size="10.5" font-family="monospace" fill="#475569">password_hash</text>
+            <text x="42" y="134" font-size="10.5" font-family="monospace" fill="#475569">role · status</text>
+
+            <!-- professional_profiles -->
+            <rect x="274" y="30" width="206" height="122" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="274" y="30" width="206" height="30" rx="10" fill="#0ea5e9" /><rect x="274" y="50" width="206" height="10" fill="#0ea5e9" />
+            <text x="286" y="50" font-size="12" font-weight="700" fill="#fff">professional_profiles</text>
+            <text x="286" y="80" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">id (uuid, pk)</text>
+            <text x="286" y="98" font-size="10.5" font-family="monospace" fill="#475569">user_id (fk, unique)</text>
+            <text x="286" y="116" font-size="10.5" font-family="monospace" fill="#475569">display_name · bio</text>
+            <text x="286" y="134" font-size="10.5" font-family="monospace" fill="#475569">city · session_price_cents</text>
+
+            <!-- client_profiles -->
+            <rect x="528" y="30" width="188" height="122" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="528" y="30" width="188" height="30" rx="10" fill="#7c3aed" /><rect x="528" y="50" width="188" height="10" fill="#7c3aed" />
+            <text x="540" y="50" font-size="12" font-weight="700" fill="#fff">client_profiles</text>
+            <text x="540" y="80" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">id (uuid, pk)</text>
+            <text x="540" y="98" font-size="10.5" font-family="monospace" fill="#475569">user_id (fk, unique)</text>
+            <text x="540" y="116" font-size="10.5" font-family="monospace" fill="#475569">name · phone</text>
+            <text x="540" y="134" font-size="10.5" font-family="monospace" fill="#475569">city · state</text>
+
+            <!-- specialties -->
+            <rect x="764" y="30" width="204" height="122" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="764" y="30" width="204" height="30" rx="10" fill="#f59e0b" /><rect x="764" y="50" width="204" height="10" fill="#f59e0b" />
+            <text x="776" y="50" font-size="12" font-weight="700" fill="#fff">specialties</text>
+            <text x="776" y="80" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">id (pk)</text>
+            <text x="776" y="98" font-size="10.5" font-family="monospace" fill="#475569">name</text>
+            <text x="776" y="116" font-size="10.5" font-family="monospace" fill="#475569">musculação, funcional…</text>
+
+            <!-- availability_rules -->
+            <rect x="30" y="200" width="206" height="122" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="30" y="200" width="206" height="30" rx="10" fill="#0891b2" /><rect x="30" y="220" width="206" height="10" fill="#0891b2" />
+            <text x="42" y="220" font-size="12" font-weight="700" fill="#fff">availability_rules</text>
+            <text x="42" y="250" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">id (uuid, pk)</text>
+            <text x="42" y="268" font-size="10.5" font-family="monospace" fill="#475569">professional_id (fk)</text>
+            <text x="42" y="286" font-size="10.5" font-family="monospace" fill="#475569">weekday · start/end</text>
+            <text x="42" y="304" font-size="10.5" font-family="monospace" fill="#475569">slot_minutes</text>
+
+            <!-- availability_exceptions -->
+            <rect x="274" y="200" width="216" height="122" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="274" y="200" width="216" height="30" rx="10" fill="#0891b2" /><rect x="274" y="220" width="216" height="10" fill="#0891b2" />
+            <text x="286" y="220" font-size="12" font-weight="700" fill="#fff">availability_exceptions</text>
+            <text x="286" y="250" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">id (uuid, pk)</text>
+            <text x="286" y="268" font-size="10.5" font-family="monospace" fill="#475569">professional_id (fk)</text>
+            <text x="286" y="286" font-size="10.5" font-family="monospace" fill="#475569">starts_at · ends_at</text>
+            <text x="286" y="304" font-size="10.5" font-family="monospace" fill="#475569">reason</text>
+
+            <!-- appointments -->
+            <rect x="528" y="200" width="200" height="122" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="528" y="200" width="200" height="30" rx="10" fill="#16a34a" /><rect x="528" y="220" width="200" height="10" fill="#16a34a" />
+            <text x="540" y="220" font-size="12" font-weight="700" fill="#fff">appointments</text>
+            <text x="540" y="250" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">id (uuid, pk)</text>
+            <text x="540" y="268" font-size="10.5" font-family="monospace" fill="#475569">professional_id · client_id</text>
+            <text x="540" y="286" font-size="10.5" font-family="monospace" fill="#475569">starts_at · ends_at</text>
+            <text x="540" y="304" font-size="10.5" font-family="monospace" fill="#475569">status · period (gist)</text>
+
+            <!-- payments -->
+            <rect x="764" y="200" width="204" height="122" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="764" y="200" width="204" height="30" rx="10" fill="#16a34a" /><rect x="764" y="220" width="204" height="10" fill="#16a34a" />
+            <text x="776" y="220" font-size="12" font-weight="700" fill="#fff">payments</text>
+            <text x="776" y="250" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">id (uuid, pk)</text>
+            <text x="776" y="268" font-size="10.5" font-family="monospace" fill="#475569">appointment_id (fk)</text>
+            <text x="776" y="286" font-size="10.5" font-family="monospace" fill="#475569">amount_cents</text>
+            <text x="776" y="304" font-size="10.5" font-family="monospace" fill="#475569">platform_fee · net (10/90)</text>
+
+            <!-- professional_specialties -->
+            <rect x="30" y="380" width="216" height="100" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="30" y="380" width="216" height="30" rx="10" fill="#64748b" /><rect x="30" y="400" width="216" height="10" fill="#64748b" />
+            <text x="42" y="400" font-size="11.5" font-weight="700" fill="#fff">professional_specialties</text>
+            <text x="42" y="430" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">professional_id (pk, fk)</text>
+            <text x="42" y="448" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">specialty_id (pk, fk)</text>
+
+            <!-- professional_photos -->
+            <rect x="274" y="380" width="206" height="100" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="274" y="380" width="206" height="30" rx="10" fill="#db2777" /><rect x="274" y="400" width="206" height="10" fill="#db2777" />
+            <text x="286" y="400" font-size="11.5" font-weight="700" fill="#fff">professional_photos</text>
+            <text x="286" y="430" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">id (uuid, pk)</text>
+            <text x="286" y="448" font-size="10.5" font-family="monospace" fill="#475569">professional_id · url · position</text>
+
+            <!-- neighborhoods -->
+            <rect x="528" y="380" width="188" height="100" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="528" y="380" width="188" height="30" rx="10" fill="#f59e0b" /><rect x="528" y="400" width="188" height="10" fill="#f59e0b" />
+            <text x="540" y="400" font-size="11.5" font-weight="700" fill="#fff">neighborhoods</text>
+            <text x="540" y="430" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">id (pk)</text>
+            <text x="540" y="448" font-size="10.5" font-family="monospace" fill="#475569">name · city · state</text>
+
+            <!-- professional_neighborhoods -->
+            <rect x="764" y="380" width="204" height="100" rx="10" fill="#fff" stroke="#cbd5e1" />
+            <rect x="764" y="380" width="204" height="30" rx="10" fill="#64748b" /><rect x="764" y="400" width="204" height="10" fill="#64748b" />
+            <text x="776" y="400" font-size="11.5" font-weight="700" fill="#fff">professional_neighborhoods</text>
+            <text x="776" y="430" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">professional_id (pk, fk)</text>
+            <text x="776" y="448" font-size="10.5" font-family="monospace" fill="#0f766e" font-weight="700">neighborhood_id (pk, fk)</text>
+
+            <g stroke="#94a3b8" stroke-width="1.4" fill="none" opacity=".8">
+              <path d="M226 92 L270 92" marker-end="url(#rel)" />
+              <path d="M480 92 L524 92" marker-end="url(#rel)" />
+              <path d="M302 152 L302 196" marker-end="url(#rel)" />
+              <path d="M438 152 L438 196" marker-end="url(#rel)" />
+              <path d="M480 92 Q520 92 520 160 Q520 196 524 196" marker-end="url(#rel)" opacity=".5" />
+              <path d="M628 322 L628 376" marker-end="url(#rel)" />
+              <path d="M728 261 L760 261" marker-end="url(#rel)" />
+              <path d="M138 322 L138 376" marker-end="url(#rel)" />
+              <path d="M377 152 L377 376" marker-end="url(#rel)" opacity=".55" />
+              <path d="M870 152 L870 376" marker-end="url(#rel)" opacity=".55" />
+            </g>
+          </g>
+        </svg>
+        <figcaption>Modelo relacional simplificado. Ligações principais entre usuários, perfis, disponibilidade, agendamentos e pagamentos.</figcaption>
+      </figure>
+
+      <h3>Tabelas e entidades</h3>
+      <div class="grid cols-2">
+        <div class="card"><h5>Núcleo de identidade</h5><p><code>users</code>, <code>professional_profiles</code>, <code>client_profiles</code>, <code>specialties</code>, <code>professional_specialties</code>.</p></div>
+        <div class="card"><h5>Agenda e finanças</h5><p><code>availability_rules</code>, <code>availability_exceptions</code>, <code>appointments</code>, <code>payments</code>.</p></div>
+        <div class="card"><h5>Descoberta e mídia</h5><p><code>neighborhoods</code>, <code>professional_neighborhoods</code>, <code>professional_photos</code>.</p></div>
+        <div class="card"><h5>Futuro</h5><p><code>device_tokens</code> para push notifications e avaliações/reputação (<code>professional_ratings</code>).</p></div>
+      </div>
+
+      <h3>Garantia contra dupla reserva</h3>
+      <p>O banco usa um intervalo <code>tstzrange</code> gerado e uma constraint de exclusão GiST. Dois agendamentos ativos do mesmo profissional não podem se sobrepor:</p>
+      <pre><code><span class="k">CREATE EXTENSION IF NOT EXISTS</span> btree_gist;
+
+<span class="k">ALTER TABLE</span> appointments
+  <span class="k">ADD COLUMN</span> period tstzrange
+  <span class="k">GENERATED ALWAYS AS</span> (tstzrange(starts_at, ends_at)) <span class="k">STORED</span>;
+
+<span class="k">ALTER TABLE</span> appointments
+  <span class="k">ADD CONSTRAINT</span> no_overlap_professional
+  <span class="k">EXCLUDE USING</span> gist (
+    professional_id <span class="k">WITH</span> =,
+    period <span class="k">WITH</span> &amp;&amp;
+  ) <span class="k">WHERE</span> (status <span class="k">IN</span> (<span class="s">'pending_payment'</span>, <span class="s">'confirmed'</span>));</code></pre>
+
+      <div class="callout ok">
+        <div class="mark">✓</div>
+        <div>
+          <p>A constraint vale tanto para a <strong>pré-reserva</strong> (<code>pending_payment</code>)
+          quanto para a sessão <strong>confirmada</strong>. A exclusão é resolvida no próprio banco,
+          não dependendo de checagens na aplicação — o que elimina race conditions.</p>
+        </div>
+      </div>
+
+      <h3>Migrações</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Arquivo</th><th>Conteúdo</th></tr></thead>
+          <tbody>
+            <tr><td><code>00001_initial_schema.sql</code></td><td>Schema inicial, enums, tabelas e constraint anti-sobreposição</td></tr>
+            <tr><td><code>0002_professional_media.sql</code></td><td>Tabela <code>professional_photos</code> e campos de mídia</td></tr>
+            <tr><td><code>0003_professional_ratings.sql</code></td><td>Avaliações e reputação</td></tr>
+            <tr><td><code>0004_seed_mock_professionals.sql</code></td><td>Dados de demonstração para desenvolvimento</td></tr>
+            <tr><td><code>0005_professional_neighborhoods.sql</code></td><td>Bairros e relação com profissionais</td></tr>
+            <tr><td><code>0006_seed_neighborhoods.sql</code></td><td>Seed de bairros</td></tr>
+            <tr><td><code>0007_appointment_specialty.sql</code></td><td>Tipo de aula/especialidade no agendamento</td></tr>
+            <tr><td><code>0008_appointment_location.sql</code></td><td>Local do atendimento no agendamento</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="midia">
+      <h2><span class="num">08</span> Mídia e Object Storage</h2>
+      <p class="sub">Upload direto por URL pré-assinada, sem passar binários pela API.</p>
+
+      <figure class="diagram">
+        <svg viewBox="0 0 1000 360" role="img" aria-label="Fluxo de upload por URL pré-assinada">
+          <defs>
+            <marker id="a3" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#0f766e" /></marker>
+            <marker id="a3b" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#0369a1" /></marker>
+          </defs>
+          <g font-family="sans-serif">
+            <rect x="30" y="24" width="170" height="46" rx="10" fill="#334155" />
+            <text x="115" y="52" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">Navegador</text>
+            <rect x="270" y="24" width="190" height="46" rx="10" fill="#16a34a" />
+            <text x="365" y="45" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">Core API · Go</text>
+            <text x="365" y="61" text-anchor="middle" font-size="10.5" fill="#dcfce7">presign endpoint</text>
+            <rect x="530" y="24" width="190" height="46" rx="10" fill="#0f766e" />
+            <text x="625" y="45" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">Object Storage</text>
+            <text x="625" y="61" text-anchor="middle" font-size="10.5" fill="#ccfbf1">Neon · bucket</text>
+            <rect x="790" y="24" width="180" height="46" rx="10" fill="#0ea5e9" />
+            <text x="880" y="45" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">Frontend</text>
+            <text x="880" y="61" text-anchor="middle" font-size="10.5" fill="#e0f2fe">img src público</text>
+
+            <line x1="115" y1="70" x2="115" y2="330" stroke="#cbd5e1" stroke-dasharray="6 5" />
+            <line x1="365" y1="70" x2="365" y2="330" stroke="#bbf7d0" stroke-dasharray="6 5" />
+            <line x1="625" y1="70" x2="625" y2="330" stroke="#99f6e4" stroke-dasharray="6 5" />
+            <line x1="880" y1="70" x2="880" y2="330" stroke="#bae6fd" stroke-dasharray="6 5" />
+
+            <line x1="115" y1="112" x2="360" y2="112" stroke="#0369a1" stroke-width="2.2" marker-end="url(#a3b)" />
+            <text x="238" y="104" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0f172a">1. POST /me/media/presign</text>
+            <text x="238" y="128" text-anchor="middle" font-size="10.5" fill="#64748b">tipo e finalidade do arquivo</text>
+
+            <line x1="360" y1="162" x2="120" y2="162" stroke="#0f766e" stroke-width="2.2" marker-end="url(#a3)" />
+            <text x="238" y="154" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0f172a">2. upload_url + public_url</text>
+            <text x="238" y="178" text-anchor="middle" font-size="10.5" fill="#64748b">SigV4 · validade padrão 15 min</text>
+
+            <line x1="115" y1="215" x2="620" y2="215" stroke="#0f766e" stroke-width="2.6" marker-end="url(#a3)" />
+            <text x="370" y="207" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0f172a">3. PUT direto no bucket (binário)</text>
+            <text x="370" y="231" text-anchor="middle" font-size="10.5" fill="#64748b">a API não trafega a imagem</text>
+
+            <line x1="625" y1="270" x2="885" y2="270" stroke="#0f766e" stroke-width="2.2" marker-end="url(#a3)" />
+            <text x="755" y="262" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0f172a">4. leitura pública (public_read)</text>
+            <text x="755" y="286" text-anchor="middle" font-size="10.5" fill="#64748b">avatar e galeria nos cards/perfil</text>
+
+            <line x1="115" y1="320" x2="360" y2="320" stroke="#0369a1" stroke-width="2.2" marker-end="url(#a3b)" />
+            <text x="238" y="312" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0f172a">5. POST /me/photos (url)</text>
+          </g>
+        </svg>
+        <figcaption>Fluxo de upload: a API apenas assina a URL; o binário vai do navegador direto ao storage.</figcaption>
+      </figure>
+
+      <h3>Como o backend escolhe o provedor</h3>
+      <ul>
+        <li><strong>Neon Object Storage:</strong> detectado pelas variáveis <code>AWS_ENDPOINT_URL_S3</code>, <code>AWS_ACCESS_KEY_ID</code> e <code>AWS_SECRET_ACCESS_KEY</code>, ou por <code>STORAGE_PROVIDER=neon</code>. Usa path-style + SigV4.</li>
+        <li><strong>MinIO / PGSTY Silo (local):</strong> a API provisiona o bucket automaticamente (<code>EnsureBucket</code>) e configura o acesso.</li>
+        <li><strong>Bucket gerenciado:</strong> no Neon, o bucket e o modo <code>public_read</code> são declarados em <code>neon.ts</code> (infra como código) e aplicados com <code>neon deploy</code>. A API apenas configura CORS para <code>GET</code>, <code>PUT</code> e <code>HEAD</code>.</li>
+      </ul>
+
+      <div class="callout info">
+        <div class="mark">i</div>
+        <div>
+          <p>No Neon, operações de política de bucket (<code>PutBucketPolicy</code>/<code>PutBucketAcl</code>)
+          retornam <code>501</code>. Por isso o provisionamento automático fica desligado
+          (<code>StorageProvision = false</code>) e o bucket é definido via console/configuração declarativa.</p>
+        </div>
+      </div>
+
+      <h4>Configuração declarativa do bucket</h4>
+      <pre><code><span class="c">// neon.ts</span>
+<span class="k">export default</span> defineConfig({
+  buckets: {
+    <span class="s">"fitconecta-images"</span>: { access: <span class="s">"public_read"</span> },
+  },
+});</code></pre>
+    </section>
+
+    <section class="section" id="infra">
+      <h2><span class="num">09</span> Infraestrutura e deploy</h2>
+      <p class="sub">Dois apps no Fly.io, banco e storage gerenciados no Neon.</p>
+
+      <figure class="diagram">
+        <svg viewBox="0 0 1000 470" role="img" aria-label="Topologia de deploy no Fly.io com Neon">
+          <defs>
+            <linearGradient id="flyBox" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c3aed" /><stop offset="1" stop-color="#db2777" /></linearGradient>
+            <marker id="a4" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#64748b" /></marker>
+          </defs>
+          <g font-family="sans-serif">
+            <rect x="20" y="180" width="150" height="92" rx="12" fill="#fff" stroke="#cbd5e1" />
+            <text x="95" y="212" text-anchor="middle" font-size="13" font-weight="700" fill="#334155">Navegador</text>
+            <text x="95" y="234" text-anchor="middle" font-size="11" fill="#64748b">HTTPS</text>
+            <text x="95" y="252" text-anchor="middle" font-size="11" fill="#64748b">cookie no host</text>
+
+            <rect x="212" y="50" width="380" height="400" rx="18" fill="#faf5ff" stroke="#d8b4fe" stroke-dasharray="7 5" />
+            <text x="402" y="78" text-anchor="middle" font-size="12" font-weight="800" fill="#7c3aed" letter-spacing=".1em">FLY.IO · REGIÃO GRU</text>
+
+            <rect x="238" y="100" width="328" height="132" rx="12" fill="#fff" stroke="#c4b5fd" />
+            <rect x="238" y="100" width="328" height="38" rx="12" fill="url(#flyBox)" /><rect x="238" y="120" width="328" height="18" fill="url(#flyBox)" />
+            <text x="402" y="124" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">frontend-fit-conecta</text>
+            <text x="258" y="162" font-size="11.5" fill="#334155">Next.js 16 · standalone</text>
+            <text x="258" y="182" font-size="11.5" fill="#334155">porta interna 3000 · force_https</text>
+            <text x="258" y="202" font-size="11.5" fill="#334155">proxy /app/* e /api/*</text>
+            <text x="258" y="220" font-size="10.5" fill="#7c3aed" font-weight="600">secret: BACKEND_PROXY_URL</text>
+
+            <rect x="238" y="270" width="328" height="132" rx="12" fill="#fff" stroke="#86efac" />
+            <rect x="238" y="270" width="328" height="38" rx="12" fill="#16a34a" /><rect x="238" y="290" width="328" height="18" fill="#16a34a" />
+            <text x="402" y="294" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">backend-fit-conecta</text>
+            <text x="258" y="332" font-size="11.5" fill="#334155">Core API · Go</text>
+            <text x="258" y="352" font-size="11.5" fill="#334155">porta interna 8080 · /health</text>
+            <text x="258" y="372" font-size="11.5" fill="#334155">healthcheck + auto stop/start</text>
+            <text x="258" y="390" font-size="10.5" fill="#15803d" font-weight="600">secrets: DATABASE_URL, JWT, STORAGE_*</text>
+
+            <line x1="402" y1="232" x2="402" y2="266" stroke="#0284c7" stroke-width="2.4" marker-end="url(#a4)" />
+            <text x="414" y="255" font-size="10.5" fill="#0369a1" font-weight="700">/api/*</text>
+
+            <rect x="640" y="50" width="340" height="400" rx="18" fill="#ecfeff" stroke="#5eead4" stroke-dasharray="7 5" />
+            <text x="810" y="78" text-anchor="middle" font-size="12" font-weight="800" fill="#0f766e" letter-spacing=".1em">NEON · MANAGED</text>
+
+            <rect x="666" y="100" width="288" height="112" rx="12" fill="#fff" stroke="#99f6e4" />
+            <text x="682" y="126" font-size="12" font-weight="700" fill="#0f766e">PostgreSQL 16</text>
+            <text x="682" y="148" font-size="11" fill="#475569">DATABASE_URL com sslmode=require</text>
+            <text x="682" y="168" font-size="11" fill="#475569">PgBouncer · simple_protocol</text>
+            <text x="682" y="188" font-size="11" fill="#475569">schema aplicado (0001–0008)</text>
+
+            <rect x="666" y="232" width="288" height="112" rx="12" fill="#fff" stroke="#99f6e4" />
+            <text x="682" y="258" font-size="12" font-weight="700" fill="#0f766e">Object Storage (S3)</text>
+            <text x="682" y="280" font-size="11" fill="#475569">bucket fitconecta-images</text>
+            <text x="682" y="300" font-size="11" fill="#475569">access: public_read</text>
+            <text x="682" y="320" font-size="11" fill="#475569">path-style + SigV4 · CORS</text>
+
+            <rect x="666" y="364" width="288" height="58" rx="12" fill="#fff7ed" stroke="#fdba74" />
+            <text x="682" y="388" font-size="11.5" font-weight="700" fill="#9a3412">neon.ts · infra como código</text>
+            <text x="682" y="407" font-size="10.5" fill="#c2410c">neon deploy provisiona bucket e injeta AWS_*</text>
+
+            <line x1="402" y1="402" x2="402" y2="420" stroke="#64748b" stroke-width="2" marker-end="url(#a4)" opacity=".5" />
+            <text x="402" y="440" text-anchor="middle" font-size="10.5" fill="#94a3b8">HTTPS público em ambos os apps</text>
+            <line x1="590" y1="200" x2="662" y2="156" stroke="#64748b" stroke-width="2" marker-end="url(#a4)" />
+            <line x1="590" y1="336" x2="662" y2="288" stroke="#64748b" stroke-width="2" marker-end="url(#a4)" />
+          </g>
+        </svg>
+        <figcaption>Deploy separado: frontend e backend no Fly.io (gru), dados e mídia no Neon.</figcaption>
+      </figure>
+
+      <h3>Apps e configuração</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>App</th><th>Imagem / runtime</th><th>Porta</th><th>Observação</th></tr></thead>
+          <tbody>
+            <tr><td><code>frontend-fit-conecta</code></td><td>Next.js 16 standalone (<code>node server.js</code>)</td><td>3000</td><td>Recebe <code>BACKEND_PROXY_URL</code> em runtime; inclui o painel em <code>/admin</code></td></tr>
+            <tr><td><code>backend-fit-conecta</code></td><td>Go (binário estático)</td><td>8080</td><td>Healthcheck em <code>/health</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Secrets de produção</h4>
+      <div class="kv">
+        <div>Backend</div><div><code>DATABASE_URL</code>, <code>JWT_SECRET</code>, <code>ADMIN_JWT_SECRET</code>, <code>ALLOWED_ORIGINS</code>, <code>COOKIE_SECURE=true</code>, <code>ENV=production</code></div>
+        <div>Backend · storage</div><div><code>STORAGE_PROVIDER=neon</code>, <code>AWS_ENDPOINT_URL_S3</code>, <code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code>, <code>STORAGE_BUCKET</code></div>
+        <div>Frontend</div><div><code>BACKEND_PROXY_URL=https://backend-fit-conecta.fly.dev</code> (sem barra final); o painel usa <code>/admin</code> no mesmo host</div>
+        <div>Frontend · legado</div><div><code>NEXT_PUBLIC_API_URL</code> não é mais utilizada; o cliente usa caminhos relativos</div>
+      </div>
+
+      <h3>Fluxo de deploy</h3>
+      <ol class="steps">
+        <li><strong>Autenticar:</strong> <code>fly auth login</code> e confirmar com <code>fly auth whoami</code>.</li>
+        <li><strong>Migração:</strong> aplicar <code>infra/docker/postgres/migrations/0009_admin_panel.sql</code> e <code>infra/docker/postgres/migrations/0010_pix_payment.sql</code> no PostgreSQL de produção antes do deploy do backend.</li>
+        <li><strong>Backend:</strong> definir secrets e executar <code>fly deploy</code> em <code>backend/core-api</code>.</li>
+        <li><strong>Frontend:</strong> definir <code>BACKEND_PROXY_URL</code> e executar <code>fly deploy</code> em <code>frontend</code>; o painel é publicado em <code>/admin</code>.</li>
+        <li><strong>Admin:</strong> criar o administrador via <code>cmd/admin</code> e acessar <code>https://frontend-fit-conecta.fly.dev/admin/login</code>.</li>
+        <li><strong>Validar:</strong> <code>GET /health</code> no backend, <code>GET /api/v1/professionals</code> no frontend (200) e login em <code>/admin/login</code>.</li>
+        <li><strong>Testar login:</strong> autenticar, cair em <code>/app/professional</code> e confirmar o cookie no domínio do frontend.</li>
+      </ol>
+
+      <pre><code><span class="c"># backend</span>
+flyctl secrets set --app backend-fit-conecta \
+  DATABASE_URL=<span class="s">"postgres://..."</span> JWT_SECRET=<span class="s">"..."</span> \
+  ADMIN_JWT_SECRET=<span class="s">"..."</span> \
+  ALLOWED_ORIGINS=<span class="s">"https://frontend-fit-conecta.fly.dev"</span> \
+  COOKIE_SECURE=<span class="s">"true"</span> ENV=<span class="s">"production"</span>
+
+<span class="c"># frontend — proxy same-origin (runtime), inclui /admin</span>
+flyctl secrets set BACKEND_PROXY_URL=<span class="s">"https://backend-fit-conecta.fly.dev"</span> \
+  --app frontend-fit-conecta
+
+<span class="c"># deploy</span>
+<span class="k">cd</span> backend/core-api &amp;&amp; flyctl deploy
+<span class="k">cd</span> frontend &amp;&amp; flyctl deploy</code></pre>
+
+      <div class="callout warn">
+        <div class="mark">!</div>
+        <div>
+          <p><code>fly secrets set</code> já reinicia as máquinas para aplicar o novo valor.
+          Como <code>BACKEND_PROXY_URL</code> é lido em runtime, <strong>não é necessário rebuild</strong>
+          nesse caso — basta aguardar o app voltar. Já <code>NEXT_PUBLIC_*</code> seria embutido no build.</p>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="mark">i</div>
+        <div>
+          <p><strong>Diagnóstico rápido:</strong> se <code>GET /api/v1/professionals</code> no frontend
+          retorna <strong>404</strong> (página do Next) em vez de <strong>200</strong>, o
+          <code>BACKEND_PROXY_URL</code> provavelmente está vazio e o proxy caiu em
+          <code>NextResponse.next()</code>. Se retorna <strong>502</strong>, o valor existe mas o
+          backend não está acessível. Se retorna <strong>200</strong>, o proxy está operacional.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="local">
+      <h2><span class="num">10</span> Desenvolvimento local</h2>
+      <p class="sub">Ambiente completo em containers, com storage S3-compatível local.</p>
+
+      <p>O <code>infra/local/docker-compose.yml</code> sobe três serviços: <strong>web</strong> (Next.js), <strong>core-api</strong> (Go) e <strong>minio</strong> (PGSTY Silo, S3-compatível). O banco é externo (Neon) por padrão, configurado em <code>infra/local/.env</code>.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Serviço</th><th>Container</th><th>Porta</th><th>Função</th></tr></thead>
+          <tbody>
+            <tr><td>web</td><td><code>fitconecta-web</code></td><td>3000</td><td>Next.js; proxy <code>/api/*</code> para <code>core-api:8080</code></td></tr>
+            <tr><td>core-api</td><td><code>fitconecta-core-api</code></td><td>8080</td><td>API Go; conecta ao Postgres do <code>DATABASE_URL</code></td></tr>
+            <tr><td>minio (Silo)</td><td><code>fitconecta-minio</code></td><td>9000 / 9001</td><td>Storage S3 local; console web em 9001</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <pre><code><span class="c"># subir tudo</span>
+<span class="k">cd</span> infra/local
+docker compose up -d --build
+
+<span class="c"># health da API</span>
+curl http://localhost:8080/health
+
+<span class="c"># web</span>
+open http://localhost:3000
+
+<span class="c"># console do storage</span>
+open http://localhost:9001   <span class="c"># fitconecta_minio / fitconecta_minio_secret</span></code></pre>
+
+      <div class="grid cols-2">
+        <div class="card tint-green"><h5>Banco</h5><p>Use uma branch de desenvolvimento do Neon. A API lê <code>DATABASE_URL</code> do ambiente; o schema é aplicado manualmente via migrations.</p></div>
+        <div class="card tint-blue"><h5>Storage</h5><p>Por padrão <code>STORAGE_PROVIDER=minio</code>. O bucket é criado automaticamente pela API na inicialização. No Neon, use <code>STORAGE_PROVIDER=neon</code>.</p></div>
+        <div class="card tint-purple"><h5>Frontend</h5><p>O <code>BACKEND_PROXY_URL</code> local aponta para <code>http://core-api:8080</code> dentro da rede do Compose. Fora do Docker, use <code>http://localhost:8080</code> em <code>frontend/.env.local</code>.</p></div>
+        <div class="card tint-amber"><h5>Contas de teste</h5><p>O seed de desenvolvimento cria profissionais e usuários de demonstração. Consulte <code>0004_seed_mock_professionals.sql</code>; não reutilize essas credenciais fora do ambiente local.</p></div>
+      </div>
+    </section>
+
+    <section class="section" id="adr">
+      <h2><span class="num">11</span> Decisões de arquitetura (ADRs)</h2>
+      <p class="sub">Registro histórico das decisões significativas do projeto.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Título</th><th>Status</th><th>Data</th></tr></thead>
+          <tbody>
+            <tr><td><a href="adr/0001-estrutura-do-banco-de-dados.md">ADR 0001</a></td><td>Modelagem e Estrutura do Banco de Dados Relacional (PostgreSQL)</td><td>Aceito</td><td>2026-10-10</td></tr>
+            <tr><td><a href="adr/0002-definicao-das-paginas.md">ADR 0002</a></td><td>Definição das Páginas Frontend (Next.js)</td><td>Aceito</td><td>2026-10-13</td></tr>
+            <tr><td><a href="adr/0003-armazenamento-de-midias-dos-profissionais.md">ADR 0003</a></td><td>Armazenamento de Mídias dos Profissionais (Avatar e Galeria)</td><td>Aceito</td><td>2026-10-14</td></tr>
+            <tr><td><a href="adr/0004-bairros-de-atuacao-dos-profissionais.md">ADR 0004</a></td><td>Bairros de Atuação dos Profissionais</td><td>Aceito</td><td>2026-10-14</td></tr>
+            <tr><td><a href="adr/0005-fluxo-de-agendamento-de-sessao.md">ADR 0005</a></td><td>Fluxo de Agendamento de Sessão pelo Cliente</td><td>Aceito</td><td>2026-10-15</td></tr>
+            <tr><td><a href="adr/0006-deploy-flyio-separado-backend-frontend.md">ADR 0006</a></td><td>Deploy Separado do Backend e Frontend no Fly.io</td><td>Aceito</td><td>2026-10-16</td></tr>
+            <tr><td><a href="adr/0007-integracao-plataforma-de-pagamentos.md">ADR 0007</a></td><td>Integração com Plataforma de Pagamentos (Pix, Cartão e Split 90/10)</td><td>Proposto (MVP Pix definido no ADR 0010)</td><td>2026-10-20</td></tr>
+            <tr><td><a href="adr/0008-painel-administrativo.md">ADR 0008</a></td><td>Painel Administrativo com Acesso Separado, Gestão de Agendamentos, Pagamentos e Status de Usuários</td><td>Substituído parcialmente pelo ADR 0009</td><td>2026-10-20</td></tr>
+            <tr><td><a href="adr/0009-admin-no-mesmo-dominio.md">ADR 0009</a></td><td>Painel Administrativo no Mesmo Domínio em <code>/admin</code></td><td>Aceito</td><td>2026-10-20</td></tr>
+            <tr><td><a href="adr/0010-pagamento-obrigatorio-pix-no-agendamento.md">ADR 0010</a></td><td>Pagamento Obrigatório via Pix no Fluxo de Agendamento</td><td>Aceito</td><td>2026-10-20</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout info">
+        <div class="mark">i</div>
+        <div>
+          <p>O ADR 0006 menciona <code>NEXT_PUBLIC_API_URL</code> como configuração de build.
+          Durante a operação no Fly.io, essa abordagem foi substituída pelo proxy same-origin com
+          <code>BACKEND_PROXY_URL</code> em runtime, necessário para o cookie de sessão funcionar
+          entre os dois hostnames <code>*.fly.dev</code>.</p>
+        </div>
+      </div>
+
+      <p>Documentação complementar: <a href="dev/GETTING_STARTED.md">Guia rápido de desenvolvimento</a> · <a href="../readme.md">README do projeto</a> · <a href="adr/README.md">Índice de ADRs</a>.</p>
+    </section>
+
+    <section class="section" id="links">
+      <h2><span class="num">12</span> Recursos e links</h2>
+      <p class="sub">Referências oficiais das tecnologias e serviços utilizados.</p>
+
+      <h4>Backend e banco</h4>
+      <div class="linkgrid">
+        <a class="linkcard" href="https://go.dev/doc/" target="_blank" rel="noopener"><span class="lico">Go</span><span><b>Go — documentação oficial</b><span>Linguagem, stdlib e guias</span></span></a>
+        <a class="linkcard" href="https://github.com/go-chi/chi" target="_blank" rel="noopener"><span class="lico">chi</span><span><b>chi router</b><span>Roteamento HTTP idiomático</span></span></a>
+        <a class="linkcard" href="https://github.com/jackc/pgx" target="_blank" rel="noopener"><span class="lico">pgx</span><span><b>pgx / PostgreSQL driver</b><span>Pool e protocolo nativo</span></span></a>
+        <a class="linkcard" href="https://www.postgresql.org/docs/" target="_blank" rel="noopener"><span class="lico">PG</span><span><b>PostgreSQL 16</b><span>Documentação e tipos de range</span></span></a>
+        <a class="linkcard" href="https://www.postgresql.org/docs/current/btree-gist.html" target="_blank" rel="noopener"><span class="lico">GiST</span><span><b>btree_gist</b><span>Suporte a EXCLUDE com igualdade</span></span></a>
+        <a class="linkcard" href="https://pkg.go.dev/golang.org/x/crypto/argon2" target="_blank" rel="noopener"><span class="lico">Ar</span><span><b>Argon2id</b><span>Derivação de chave para senhas</span></span></a>
+        <a class="linkcard" href="https://github.com/golang-jwt/jwt" target="_blank" rel="noopener"><span class="lico">JWT</span><span><b>golang-jwt</b><span>Tokens assinados para sessão</span></span></a>
+        <a class="linkcard" href="https://pkg.go.dev/log/slog" target="_blank" rel="noopener"><span class="lico">slog</span><span><b>log/slog</b><span>Logs estruturados em JSON</span></span></a>
+      </div>
+
+      <h4>Frontend</h4>
+      <div class="linkgrid">
+        <a class="linkcard" href="https://nextjs.org/docs" target="_blank" rel="noopener"><span class="lico">N</span><span><b>Next.js 16</b><span>App Router, proxy e standalone</span></span></a>
+        <a class="linkcard" href="https://nextjs.org/docs/app/api-reference/config/next-config-js/output" target="_blank" rel="noopener"><span class="lico">out</span><span><b>Next.js output standalone</b><span>Build enxuto para containers</span></span></a>
+        <a class="linkcard" href="https://react.dev/" target="_blank" rel="noopener"><span class="lico">R</span><span><b>React 19</b><span>Componentes e hooks</span></span></a>
+        <a class="linkcard" href="https://tailwindcss.com/docs" target="_blank" rel="noopener"><span class="lico">TW</span><span><b>Tailwind CSS 4</b><span>Estilos utilitários</span></span></a>
+        <a class="linkcard" href="https://www.typescriptlang.org/docs/" target="_blank" rel="noopener"><span class="lico">TS</span><span><b>TypeScript 5</b><span>Tipagem estática</span></span></a>
+        <a class="linkcard" href="https://developer.mozilla.org/docs/Web/HTTP/Cookies" target="_blank" rel="noopener"><span class="lico">Ck</span><span><b>HTTP Cookies (MDN)</b><span>HttpOnly, SameSite e Secure</span></span></a>
+      </div>
+
+      <h4>Infraestrutura e storage</h4>
+      <div class="linkgrid">
+        <a class="linkcard" href="https://fly.io/docs/" target="_blank" rel="noopener"><span class="lico">Fly</span><span><b>Fly.io</b><span>Apps, machines, secrets e deploy</span></span></a>
+        <a class="linkcard" href="https://fly.io/docs/reference/configuration/" target="_blank" rel="noopener"><span class="lico">toml</span><span><b>fly.toml</b><span>Referência de configuração</span></span></a>
+        <a class="linkcard" href="https://neon.tech/docs" target="_blank" rel="noopener"><span class="lico">Neon</span><span><b>Neon</b><span>PostgreSQL serverless e branches</span></span></a>
+        <a class="linkcard" href="https://neon.tech" target="_blank" rel="noopener"><span class="lico">S3</span><span><b>Neon Object Storage</b><span>Buckets S3-compatíveis</span></span></a>
+        <a class="linkcard" href="https://docs.docker.com/compose/" target="_blank" rel="noopener"><span class="lico">DC</span><span><b>Docker Compose</b><span>Ambiente local multi-serviço</span></span></a>
+        <a class="linkcard" href="https://silo.pgsty.com" target="_blank" rel="noopener"><span class="lico">Silo</span><span><b>PGSTY Silo</b><span>S3-compatível usado no dev local</span></span></a>
+      </div>
+    </section>
+
+    <section class="section" id="roadmap">
+      <h2><span class="num">13</span> Roadmap e próximos passos</h2>
+      <p class="sub">O que já está pronto e o que vem a seguir.</p>
+
+      <div class="grid cols-2">
+        <div class="card tint-green">
+          <h5>Concluído</h5>
+          <ul style="margin:0;padding-left:18px;font-size:13.5px;color:#334155">
+            <li>Core API em Go com auth, perfis, disponibilidade e agendamentos</li>
+            <li>Frontend Next.js com áreas de cliente e profissional</li>
+            <li>PostgreSQL com constraint anti-dupla-reserva</li>
+            <li>Storage S3 com upload pré-assinado e galeria</li>
+            <li>Deploy separado no Fly.io + Neon</li>
+            <li>Proxy same-origin e sessão por cookie</li>
+          </ul>
+        </div>
+        <div class="card tint-amber">
+          <h5>Próximos passos</h5>
+          <ul style="margin:0;padding-left:18px;font-size:13.5px;color:#334155">
+            <li>Integrar gateway/PSP real para Pix com split automático (cartão em fase futura, conforme ADR 0010)</li>
+            <li>Webhook de pagamento e expiração automática da pré-reserva</li>
+            <li>E-mail transacional e notificações</li>
+            <li>App mobile (Flutter) e push via FCM</li>
+            <li>Painel administrativo e moderação</li>
+            <li>Observabilidade (métricas, tracing) e CI/CD</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <div class="mark">✓</div>
+        <div>
+          <p>Para evoluir o projeto com segurança, mantenha o contrato de API documentado
+          (OpenAPI), aplique as migrations de forma controlada e preserve o desenho
+          same-origin no deploy — ele é o que garante a sessão funcionando entre os apps.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="footer">
+  <span>FitConecta+ · Documentação de arquitetura</span>
+  <span>Gerado em outubro de 2026</span>
+</footer>
+
+</body>
+</html>

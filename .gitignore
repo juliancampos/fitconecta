@@ -1,0 +1,45 @@
+# ============================================================================
+# FitConecta+ - arquivos ignorados pelo Git
+# ============================================================================
+
+# Variaveis de ambiente / segredos (nunca commitar credenciais reais)
+.env
+.env.*
+.env.example
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/bin/
+/vendor/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Sistema operacional / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+.neon
+backend/core-api/.env
+backend/core-api/.env frontend/.env.example
+.env.production

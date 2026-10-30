@@ -1,0 +1,84 @@
+services:
+  minio:
+    image: pgsty/silo:${SILO_VERSION:-RELEASE.2026-09-16T00-00-00Z}
+    container_name: fitconecta-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-fitconecta_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-fitconecta_minio_secret}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_CORS_ALLOW_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      default:
+        aliases:
+          - minio.localhost
+    healthcheck:
+      test: ["CMD", "/usr/bin/silo", "healthcheck", "live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  core-api:
+    build:
+      context: ../../backend/core-api
+      dockerfile: Dockerfile
+    container_name: fitconecta-core-api
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:?defina DATABASE_URL no arquivo infra/local/.env}
+      JWT_SECRET: ${JWT_SECRET:-fitconecta_dev_secret_key_minimum_32_characters_long_1234}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-fitconecta_dev_admin_secret_key_minimum_32_characters_1234}
+      ADMIN_JWT_EXPIRATION_HOURS: ${ADMIN_JWT_EXPIRATION_HOURS:-8}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      PIX_PROVIDER: ${PIX_PROVIDER:-mock}
+      PIX_WEBHOOK_SECRET: ${PIX_WEBHOOK_SECRET:-fitconecta_dev_pix_webhook_secret}
+      PIX_EXPIRATION_MINUTES: ${PIX_EXPIRATION_MINUTES:-10}
+      PIX_GRACE_MINUTES: ${PIX_GRACE_MINUTES:-2}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-minio}
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-minio.localhost:9000}
+      STORAGE_REGION: ${STORAGE_REGION:-us-east-1}
+      STORAGE_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-fitconecta_minio}
+      STORAGE_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-fitconecta_minio_secret}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-fitconecta-media}
+      STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-}
+      STORAGE_USE_SSL: ${STORAGE_USE_SSL:-false}
+      STORAGE_PATH_STYLE: ${STORAGE_PATH_STYLE:-true}
+      STORAGE_PRESIGN_MINUTES: ${STORAGE_PRESIGN_MINUTES:-15}
+      AWS_ENDPOINT_URL_S3: ${AWS_ENDPOINT_URL_S3:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    container_name: fitconecta-web
+    restart: unless-stopped
+    environment:
+      # Proxy same-origin: o browser chama /api/* no web e o Next encaminha para
+      # o backend. Assim o cookie HttpOnly fica no hostname do frontend (igual a
+      # producao no Fly), evitando o problema de dominios distintos.
+      BACKEND_PROXY_URL: ${BACKEND_PROXY_URL:-http://core-api:8080}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - core-api
+
+volumes:
+  minio_data:
+    name: fitconecta_minio_data

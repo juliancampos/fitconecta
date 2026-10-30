@@ -1,0 +1,454 @@
+openapi: 3.0.3
+info:
+  title: FitConecta+ Core API
+  description: API Central da Plataforma FitConecta+ (Regras de negócio, autenticação, disponibilidade, agendamentos e split de pagamentos).
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Servidor de desenvolvimento local
+
+paths:
+  /health:
+    get:
+      summary: Health check da API
+      responses:
+        '200':
+          description: API operacional
+
+  /auth/register:
+    post:
+      summary: Cadastro de cliente ou profissional autônomo
+      description: >
+        Retorna o token JWT no corpo (app mobile) e grava o cookie HttpOnly
+        `fitconecta_jwt` (área web logada).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, role, name]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                role: { type: string, enum: [client, professional] }
+                name: { type: string }
+                city: { type: string }
+                state: { type: string, example: "MG" }
+                phone: { type: string }
+                bio: { type: string }
+                session_price_cents: { type: integer, example: 10000 }
+                cref_number: { type: string }
+                specialty_ids:
+                  type: array
+                  description: Especialidades do profissional (aplicável a role=professional)
+                  items: { type: integer }
+                  example: [1, 4]
+                neighborhood_ids:
+                  type: array
+                  description: Bairros de atuação do profissional (aplicável a role=professional)
+                  items: { type: integer }
+                  example: [1, 2, 3]
+      responses:
+        '201':
+          description: Usuário cadastrado com sucesso
+        '409':
+          description: E-mail já cadastrado
+
+  /auth/login:
+    post:
+      summary: Autenticação de usuário e obtenção de token JWT
+      description: >
+        Retorna o token JWT no corpo (uso do app mobile) e também grava um
+        cookie HttpOnly `fitconecta_jwt` (uso da área web logada).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+              description: Cookie HttpOnly de sessão (fitconecta_jwt)
+
+  /auth/logout:
+    post:
+      summary: Encerra a sessão da área web
+      description: Expira o cookie de sessão `fitconecta_jwt`.
+      responses:
+        '200':
+          description: Sessão encerrada
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+              description: Cookie de sessão expirado
+
+  /auth/me:
+    get:
+      summary: Retorna os dados do perfil autenticado
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dados do perfil do usuário
+
+  /professionals:
+    get:
+      summary: Vitrine pública de profissionais autônomos (alimenta SEO e páginas públicas)
+      parameters:
+        - name: city
+          in: query
+          schema: { type: string }
+        - name: state
+          in: query
+          schema: { type: string }
+        - name: specialty_id
+          in: query
+          schema: { type: integer }
+        - name: neighborhood_id
+          in: query
+          schema: { type: integer }
+          description: Filtra profissionais que atuam no bairro informado
+      responses:
+        '200':
+          description: Lista de profissionais encontrados (inclui neighborhoods)
+
+  /neighborhoods:
+    get:
+      summary: Lista o catálogo de bairros ativos (para seleção e filtros)
+      parameters:
+        - name: city
+          in: query
+          schema: { type: string }
+        - name: state
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Lista de bairros ([{ id, name, city, state, slug }])
+
+  /professionals/{id}:
+    get:
+      summary: Detalhes do profissional e modalidades
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Perfil do profissional
+
+  /professionals/{id}/slots:
+    get:
+      summary: Consulta de slots disponíveis em tempo real para uma data específica
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: date
+          in: query
+          schema: { type: string, format: date, example: "2026-10-12" }
+      responses:
+        '200':
+          description: Horários disponíveis calculados
+
+  /professionals/me/profile:
+    get:
+      summary: Retorna o perfil do profissional autenticado
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Perfil do profissional (inclui avatar_url e photos)
+    put:
+      summary: Atualiza o perfil do profissional autenticado
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name: { type: string }
+                bio: { type: string }
+                city: { type: string }
+                state: { type: string }
+                session_price_cents: { type: integer, example: 15000 }
+                cref_number: { type: string }
+      responses:
+        '200':
+          description: Perfil atualizado
+
+  /professionals/me/specialties:
+    put:
+      summary: Define as especialidades do profissional autenticado
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                specialty_ids:
+                  type: array
+                  items: { type: integer }
+                  example: [1, 4]
+      responses:
+        '200':
+          description: Especialidades atualizadas
+
+  /professionals/me/neighborhoods:
+    get:
+      summary: Lista os bairros de atuação do profissional autenticado
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de bairros ([{ id, name, city, state, slug }])
+    put:
+      summary: Define os bairros de atuação do profissional autenticado
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                neighborhood_ids:
+                  type: array
+                  items: { type: integer }
+                  example: [1, 4, 7]
+      responses:
+        '200':
+          description: Bairros atualizados
+        '400':
+          description: Payload inválido ou limite de bairros excedido
+
+  /professionals/me/media/presign:
+    post:
+      summary: Gera URL pré-assinada para upload direto de mídia ao storage
+      description: >
+        O frontend deve enviar o arquivo via `PUT` diretamente ao `upload_url`
+        (sem cookies) e depois registrar a `public_url` em /me/avatar ou /me/photos.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, content_type]
+              properties:
+                kind: { type: string, enum: [avatar, photo] }
+                content_type:
+                  type: string
+                  enum: [image/jpeg, image/png, image/webp, image/gif]
+      responses:
+        '200':
+          description: URL pré-assinada gerada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      key: { type: string }
+                      upload_url: { type: string, format: uri }
+                      public_url: { type: string, format: uri }
+                      expires_in: { type: integer, example: 900 }
+        '400':
+          description: Tipo de imagem não suportado ou kind inválido
+
+  /professionals/me/avatar:
+    put:
+      summary: Define a foto de perfil (avatar) do profissional autenticado
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [avatar_url]
+              properties:
+                avatar_url: { type: string, format: uri }
+      responses:
+        '200':
+          description: Avatar atualizado
+
+  /professionals/me/photos:
+    get:
+      summary: Lista a galeria de fotos do profissional autenticado
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de fotos
+    post:
+      summary: Adiciona uma foto à galeria (limite de 3)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri }
+      responses:
+        '201':
+          description: Foto adicionada
+        '400':
+          description: Limite de fotos atingido ou payload inválido
+
+  /professionals/me/photos/{id}:
+    delete:
+      summary: Remove uma foto da galeria
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Foto removida
+        '404':
+          description: Foto não encontrada
+
+  /appointments:
+    post:
+      summary: Pré-reserva de agendamento e geração da transação de pagamento
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [professional_id, starts_at, ends_at, payment_method]
+              properties:
+                professional_id: { type: string, format: uuid }
+                starts_at: { type: string, format: date-time }
+                ends_at: { type: string, format: date-time }
+                specialty_id:
+                  type: integer
+                  description: Tipo de aula (especialidade oferecida pelo profissional). Opcional (ADR 0005).
+                location_type:
+                  type: string
+                  enum: [home, studio, online]
+                  description: Tipo de local da sessão. Opcional (ADR 0005).
+                location_notes:
+                  type: string
+                  description: Descrição livre do local/observações. Opcional (ADR 0005).
+                payment_method:
+                  type: string
+                  enum: [pix]
+                  description: Apenas Pix no MVP (ADR 0010).
+      responses:
+        '201':
+          description: Agendamento pré-reservado aguardando pagamento
+        '400':
+          description: Payload inválido, tipo de aula não oferecido ou tipo de local inválido
+        '409':
+          description: Horário já reservado por outro usuário (conflito de exclusão)
+
+    get:
+      summary: Lista agendamentos do usuário autenticado (cliente ou profissional)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de agendamentos
+
+  /appointments/{id}/payment:
+    post:
+      summary: Cria ou reutiliza a cobrança Pix da pré-reserva
+      description: >
+        Gera QR Code e código copia e cola para pagamento via Pix. A confirmação
+        só ocorre pelo webhook assinado do provedor (ADR 0010).
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Cobrança Pix gerada ou reutilizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      payment_id: { type: string, format: uuid }
+                      appointment_id: { type: string, format: uuid }
+                      method: { type: string, enum: [pix] }
+                      status: { type: string }
+                      amount_cents: { type: integer }
+                      expires_at: { type: string, format: date-time }
+                      qr_code_image: { type: string }
+                      copy_paste: { type: string }
+                      provider_payment_id: { type: string }
+        '409':
+          description: Agendamento não está aguardando pagamento
+        '503':
+          description: Provedor de pagamento indisponível
+
+  /payments/webhook/{provider}:
+    post:
+      summary: Webhook assinado do provedor de pagamentos
+      description: >
+        Endpoint público usado exclusivamente pelo PSP. Valida a assinatura,
+        registra o evento de forma idempotente e confirma o agendamento.
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string, enum: [mock] }
+      responses:
+        '200':
+          description: Evento processado (ou duplicado já processado)
+        '400':
+          description: Evento inválido
+        '401':
+          description: Assinatura inválida
+        '503':
+          description: Provedor de pagamento indisponível
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
