@@ -1,0 +1,15 @@
+.git
+.gitignore
+*.md
+Dockerfile
+.dockerignore
+
+# Dependencias e artefatos de build (reconstruidos na imagem)
+node_modules
+.next
+out
+npm-debug.log*
+
+# Nao embutir variaveis locais no bundle (a API publica vem do build ARG)
+.env.local
+.env*.local
