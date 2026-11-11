@@ -41,6 +41,8 @@
 | Perfil Cliente | `GET/PUT /api/v1/clients/:id` | GET/PUT |
 | Perfil Profissional | `GET/PUT /api/v1/professionals/:id` | GET/PUT |
 
+> **Nota (2026-11-01):** o [ADR 0012](0012-dados-pessoais-do-cliente.md) substitui `GET/PUT /api/v1/clients/:id` por `GET/PUT /api/v1/clients/me/profile`, derivado do token (sem id na URL, para eliminar IDOR). A página `/app/client/perfil` continua sendo a mesma.
+
 ## 4. Próximos Passos
 
 - Implementar **middleware de autenticação** (já presente em `frontend/middleware.ts`).

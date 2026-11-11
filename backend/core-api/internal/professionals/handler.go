@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"fitconecta/core-api/internal/cref"
+	"fitconecta/core-api/internal/crn"
 	"fitconecta/core-api/internal/platform/httputil"
 	"fitconecta/core-api/internal/platform/middleware"
 	"github.com/go-chi/chi/v5"
@@ -45,6 +48,8 @@ func (h *Handler) Routes(authMiddleware func(http.Handler) http.Handler, getSlot
 
 	// Rotas publicas (SEO, landing e catalogo)
 	r.Get("/", h.List)
+	r.Get("/cref/validate", h.ValidateCREF)
+	r.Get("/crn/validate", h.ValidateCRN)
 	r.Get("/{id}", h.GetByID)
 	if getSlotsHandler != nil {
 		r.Get("/{id}/slots", getSlotsHandler)
@@ -178,6 +183,86 @@ func (h *Handler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.Success(w, http.StatusOK, updated, "Perfil atualizado com sucesso")
+}
+
+// ValidateCREF responde sempre 200 para que o frontend possa exibir um aviso
+// sem bloquear o cadastro. reason: not_found | inactive | unavailable.
+func (h *Handler) ValidateCREF(w http.ResponseWriter, r *http.Request) {
+	number := strings.TrimSpace(r.URL.Query().Get("number"))
+	if number == "" {
+		httputil.Error(w, http.StatusBadRequest, "informe o numero do CREF")
+		return
+	}
+
+	profile, err := h.service.ValidateCREF(r.Context(), number)
+	if err != nil {
+		reason := ""
+		switch {
+		case errors.Is(err, cref.ErrNotFound):
+			reason = "not_found"
+		case errors.Is(err, cref.ErrInactive):
+			reason = "inactive"
+		default:
+			reason = "unavailable"
+		}
+		httputil.Success(w, http.StatusOK, registryValidationResponse{
+			Valid:   false,
+			Reason:  reason,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	httputil.Success(w, http.StatusOK, registryValidationResponse{
+		Valid:   true,
+		Message: "CREF ativo no portal do CREF6.",
+		Number:  profile.Number,
+		Name:    profile.Name,
+	})
+}
+
+// ValidateCRN responde sempre 200 para que o frontend possa exibir um aviso
+// sem bloquear o cadastro. reason: not_found | inactive | unavailable.
+func (h *Handler) ValidateCRN(w http.ResponseWriter, r *http.Request) {
+	number := strings.TrimSpace(r.URL.Query().Get("number"))
+	if number == "" {
+		httputil.Error(w, http.StatusBadRequest, "informe o numero do CRN")
+		return
+	}
+
+	profile, err := h.service.ValidateCRN(r.Context(), number)
+	if err != nil {
+		reason := ""
+		switch {
+		case errors.Is(err, crn.ErrNotFound):
+			reason = "not_found"
+		case errors.Is(err, crn.ErrInactive):
+			reason = "inactive"
+		default:
+			reason = "unavailable"
+		}
+		httputil.Success(w, http.StatusOK, registryValidationResponse{
+			Valid:   false,
+			Reason:  reason,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	httputil.Success(w, http.StatusOK, registryValidationResponse{
+		Valid:   true,
+		Message: "CRN ativo na Consulta Nacional de Nutricionistas (CFN).",
+		Number:  profile.Number,
+		Name:    profile.Name,
+	})
+}
+
+type registryValidationResponse struct {
+	Valid   bool   `json:"valid"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message"`
+	Number  string `json:"number,omitempty"`
+	Name    string `json:"name,omitempty"`
 }
 
 func (h *Handler) SetMySpecialties(w http.ResponseWriter, r *http.Request) {

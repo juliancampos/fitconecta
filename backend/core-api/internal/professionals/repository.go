@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -18,7 +19,9 @@ type Repository interface {
 	List(ctx context.Context, f FilterParams) ([]ProfessionalProfile, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*ProfessionalProfile, error)
 	GetByUserID(ctx context.Context, userID uuid.UUID) (*ProfessionalProfile, error)
-	Update(ctx context.Context, userID uuid.UUID, req *UpdateProfileRequest) (*ProfessionalProfile, error)
+	Update(ctx context.Context, userID uuid.UUID, req *UpdateProfileRequest, crefVerifiedAt, crnVerifiedAt *time.Time) (*ProfessionalProfile, error)
+	SetCREFVerified(ctx context.Context, userID uuid.UUID, number string, verifiedAt *time.Time) error
+	SetCRNVerified(ctx context.Context, userID uuid.UUID, number string, verifiedAt *time.Time) error
 	UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarURL string) (*ProfessionalProfile, error)
 	ListSpecialties(ctx context.Context) ([]Specialty, error)
 	SetSpecialties(ctx context.Context, profID uuid.UUID, specialtyIDs []int) error
@@ -53,14 +56,14 @@ func NewRepository(pool *pgxpool.Pool) Repository {
 }
 
 const profileColumns = `id, user_id, display_name, bio, city, state, timezone,
-	session_price_cents, cref_number, avatar_url, rating_avg, reviews_count, approved_at, created_at, updated_at,
+	session_price_cents, cref_number, cref_verified_at, branch, crn_number, crn_verified_at, avatar_url, rating_avg, reviews_count, approved_at, created_at, updated_at,
 	audience_other, audience_experience`
 
 func scanProfile(row pgx.Row) (*ProfessionalProfile, error) {
 	var p ProfessionalProfile
 	err := row.Scan(
 		&p.ID, &p.UserID, &p.DisplayName, &p.Bio, &p.City, &p.State, &p.Timezone,
-		&p.SessionPriceCents, &p.CREFNumber, &p.AvatarURL, &p.RatingAvg, &p.ReviewsCount, &p.ApprovedAt, &p.CreatedAt, &p.UpdatedAt,
+		&p.SessionPriceCents, &p.CREFNumber, &p.CREFVerifiedAt, &p.Branch, &p.CRNNumber, &p.CRNVerifiedAt, &p.AvatarURL, &p.RatingAvg, &p.ReviewsCount, &p.ApprovedAt, &p.CreatedAt, &p.UpdatedAt,
 		&p.AudienceOther, &p.AudienceExperience,
 	)
 	if err != nil {
@@ -76,7 +79,7 @@ func (r *pgRepository) List(ctx context.Context, f FilterParams) ([]Professional
 
 	query := `
 		SELECT DISTINCT p.id, p.user_id, p.display_name, p.bio, p.city, p.state, p.timezone,
-		       p.session_price_cents, p.cref_number, p.avatar_url, p.rating_avg, p.reviews_count, p.approved_at, p.created_at, p.updated_at
+		       p.session_price_cents, p.cref_number, p.cref_verified_at, p.branch, p.crn_number, p.crn_verified_at, p.avatar_url, p.rating_avg, p.reviews_count, p.approved_at, p.created_at, p.updated_at
 		FROM professional_profiles p
 		JOIN users u ON u.id = p.user_id AND u.status = 'active'
 		LEFT JOIN professional_specialties ps ON ps.professional_id = p.id
@@ -85,6 +88,8 @@ func (r *pgRepository) List(ctx context.Context, f FilterParams) ([]Professional
 		  AND ($2 = '' OR UPPER(p.state) = UPPER($2))
 		  AND ($3 = 0 OR ps.specialty_id = $3)
 		  AND ($4 = 0 OR pn.neighborhood_id = $4)
+		  -- Perfil incompleto (cadastro minimo, ADR 0016) nao aparece na vitrine.
+		  AND p.city <> '' AND p.state <> ''
 		ORDER BY p.display_name ASC
 		LIMIT $5 OFFSET $6;
 	`
@@ -100,7 +105,7 @@ func (r *pgRepository) List(ctx context.Context, f FilterParams) ([]Professional
 		var p ProfessionalProfile
 		err := rows.Scan(
 			&p.ID, &p.UserID, &p.DisplayName, &p.Bio, &p.City, &p.State, &p.Timezone,
-			&p.SessionPriceCents, &p.CREFNumber, &p.AvatarURL, &p.RatingAvg, &p.ReviewsCount, &p.ApprovedAt, &p.CreatedAt, &p.UpdatedAt,
+			&p.SessionPriceCents, &p.CREFNumber, &p.CREFVerifiedAt, &p.Branch, &p.CRNNumber, &p.CRNVerifiedAt, &p.AvatarURL, &p.RatingAvg, &p.ReviewsCount, &p.ApprovedAt, &p.CreatedAt, &p.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("erro ao mapear profissional: %w", err)
@@ -125,7 +130,7 @@ func (r *pgRepository) List(ctx context.Context, f FilterParams) ([]Professional
 
 func (r *pgRepository) GetByID(ctx context.Context, id uuid.UUID) (*ProfessionalProfile, error) {
 	query := `SELECT p.id, p.user_id, p.display_name, p.bio, p.city, p.state, p.timezone,
-		p.session_price_cents, p.cref_number, p.avatar_url, p.rating_avg, p.reviews_count, p.approved_at, p.created_at, p.updated_at,
+		p.session_price_cents, p.cref_number, p.cref_verified_at, p.branch, p.crn_number, p.crn_verified_at, p.avatar_url, p.rating_avg, p.reviews_count, p.approved_at, p.created_at, p.updated_at,
 		p.audience_other, p.audience_experience
 		FROM professional_profiles p
 		JOIN users u ON u.id = p.user_id AND u.status = 'active'
@@ -176,17 +181,21 @@ func (r *pgRepository) GetByUserID(ctx context.Context, userID uuid.UUID) (*Prof
 	return p, nil
 }
 
-func (r *pgRepository) Update(ctx context.Context, userID uuid.UUID, req *UpdateProfileRequest) (*ProfessionalProfile, error) {
+func (r *pgRepository) Update(ctx context.Context, userID uuid.UUID, req *UpdateProfileRequest, crefVerifiedAt, crnVerifiedAt *time.Time) (*ProfessionalProfile, error) {
 	query := `
 		UPDATE professional_profiles
-		SET display_name = $1, bio = $2, city = $3, state = $4,
-		    session_price_cents = $5, cref_number = $6, updated_at = NOW()
-		WHERE user_id = $7
+		SET display_name = $1, bio = $2, city = $3, state = $4, session_price_cents = $5,
+		    cref_number = $6, crn_number = $8,
+		    cref_verified_at = CASE WHEN cref_number IS DISTINCT FROM $6 THEN $7 ELSE cref_verified_at END,
+		    crn_verified_at = CASE WHEN crn_number IS DISTINCT FROM $8 THEN $9 ELSE crn_verified_at END,
+		    updated_at = NOW()
+		WHERE user_id = $10
 		RETURNING ` + profileColumns + `;
 	`
 	p, err := scanProfile(r.pool.QueryRow(ctx, query,
 		req.DisplayName, req.Bio, req.City, req.State,
-		req.SessionPriceCents, req.CREFNumber, userID,
+		req.SessionPriceCents, req.CREFNumber, crefVerifiedAt,
+		nullIfEmpty(req.CRNNumber), crnVerifiedAt, userID,
 	))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -206,6 +215,34 @@ func (r *pgRepository) Update(ctx context.Context, userID uuid.UUID, req *Update
 	p.Locations, _ = r.GetLocations(ctx, p.ID)
 
 	return p, nil
+}
+
+// SetCREFVerified grava a data da validacao apenas se o CREF ainda for o mesmo
+// que foi consultado (evita marcar um numero editado no meio do caminho).
+func (r *pgRepository) SetCREFVerified(ctx context.Context, userID uuid.UUID, number string, verifiedAt *time.Time) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE professional_profiles
+		SET cref_verified_at = $1
+		WHERE user_id = $2 AND cref_number = $3;
+	`, verifiedAt, userID, number)
+	if err != nil {
+		return fmt.Errorf("erro ao gravar verificacao do CREF: %w", err)
+	}
+	return nil
+}
+
+// SetCRNVerified grava a data da validacao apenas se o CRN ainda for o mesmo
+// que foi consultado (evita marcar um numero editado no meio do caminho).
+func (r *pgRepository) SetCRNVerified(ctx context.Context, userID uuid.UUID, number string, verifiedAt *time.Time) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE professional_profiles
+		SET crn_verified_at = $1
+		WHERE user_id = $2 AND crn_number = $3;
+	`, verifiedAt, userID, number)
+	if err != nil {
+		return fmt.Errorf("erro ao gravar verificacao do CRN: %w", err)
+	}
+	return nil
 }
 
 func (r *pgRepository) UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarURL string) (*ProfessionalProfile, error) {

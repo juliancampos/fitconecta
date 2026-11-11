@@ -1,14 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f6fb;
-  --foreground: #0f172a;
-  --brand: #ff5a1f;
-  --brand-dark: #d94813;
-  --brand-soft: #fff1e9;
-  --accent: #10b981;
-  --ink: #0f172a;
-  --muted: #64748b;
+  color-scheme: dark;
+
+  --background: #08060f;
+  --foreground: #f4f0ff;
+  --brand: #8b5cf6;
+  --brand-dark: #7c3aed;
+  --brand-soft: #241a44;
+  --accent: #38bdf8;
+  --ink: #f4f0ff;
+  --muted: #a99bc4;
+  --surface: #14111f;
 }
 
 @theme inline {
@@ -20,12 +23,55 @@
   --color-accent: var(--accent);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
+  --color-surface: var(--surface);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+/* Paleta clara do Tailwind invertida para o tema escuro: as telas existentes
+   continuam usando slate/red/emerald/amber, mas com contraste para fundo
+   escuro. Nao trocar por classes hardcoded nos componentes. */
+@theme {
+  --color-slate-50: #1a1627;
+  --color-slate-100: #221d33;
+  --color-slate-200: #2c2640;
+  --color-slate-300: #3d3457;
+  --color-slate-400: #8c80a8;
+  --color-slate-500: #9d92b8;
+  --color-slate-600: #b6abcc;
+  --color-slate-700: #cec5e0;
+  --color-slate-800: #332c4a;
+  --color-slate-900: #12101c;
+  --color-slate-950: #08060f;
+
+  --color-red-50: #2a1220;
+  --color-red-100: #3a1728;
+  --color-red-200: #6b2038;
+  --color-red-400: #f87171;
+  --color-red-500: #f87171;
+  --color-red-600: #fca5a5;
+  --color-red-700: #fecdd3;
+
+  --color-emerald-50: #06291f;
+  --color-emerald-100: #073528;
+  --color-emerald-200: #0e5442;
+  --color-emerald-600: #34d399;
+  --color-emerald-700: #6ee7b7;
+
+  --color-amber-50: #2a1f07;
+  --color-amber-100: #3a2a06;
+  --color-amber-200: #5c430a;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+}
+
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(60rem 40rem at 15% -10%, rgba(139, 92, 246, 0.18), transparent 60%),
+    radial-gradient(50rem 35rem at 90% 0%, rgba(56, 189, 248, 0.12), transparent 60%);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }

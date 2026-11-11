@@ -166,7 +166,7 @@ export function AvailabilityView() {
               id="weekday"
               value={weekday}
               onChange={(e) => setWeekday(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              className="w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
             >
               {WEEKDAYS.map((label, index) => (
                 <option key={label} value={index}>

@@ -103,7 +103,7 @@ export function NeighborhoodPicker({
           placeholder="Cidade"
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/20"
+          className="w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
         <input
           aria-label="UF para buscar bairros"
@@ -111,7 +111,7 @@ export function NeighborhoodPicker({
           maxLength={2}
           value={state}
           onChange={(e) => setState(e.target.value.toUpperCase())}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/20"
+          className="w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
       </div>
 
@@ -139,7 +139,7 @@ export function NeighborhoodPicker({
               className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
                 isSelected
                   ? "bg-brand text-white"
-                  : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100"
+                  : "bg-surface text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100"
               }`}
             >
               {neighborhood.name}

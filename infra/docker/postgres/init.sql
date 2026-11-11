@@ -60,6 +60,7 @@ CREATE TABLE professional_profiles (
     timezone VARCHAR(50) NOT NULL DEFAULT 'America/Sao_Paulo',
     session_price_cents INTEGER NOT NULL CHECK (session_price_cents > 0),
     cref_number VARCHAR(30),
+    cref_verified_at TIMESTAMPTZ, -- ultima validacao positiva no portal do CREF6 (ADR 0013)
     avatar_url TEXT,
     rating_avg NUMERIC(2,1) NOT NULL DEFAULT 0,
     reviews_count INTEGER NOT NULL DEFAULT 0,
@@ -168,6 +169,9 @@ CREATE TABLE professional_locations (
 -- ============================================================================
 -- 3. PERFIL DO CLIENTE
 -- ============================================================================
+CREATE TYPE client_sex AS ENUM ('male', 'female', 'other');
+CREATE TYPE client_activity_level AS ENUM ('sedentary', 'casual', 'frequent');
+
 CREATE TABLE client_profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
@@ -175,8 +179,20 @@ CREATE TABLE client_profiles (
     phone VARCHAR(20),
     city VARCHAR(100),
     state VARCHAR(2),
+    birth_date DATE,              -- ADR 0012: dados opcionais, preenchidos na pagina de perfil
+    sex client_sex,
+    height_cm SMALLINT,
+    weight_kg NUMERIC(5,1),
+    activity_level client_activity_level,
+    objective TEXT,
+    cpf VARCHAR(11),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_client_birth_date CHECK (birth_date IS NULL OR birth_date >= DATE '1900-01-01'),
+    CONSTRAINT chk_client_height CHECK (height_cm IS NULL OR height_cm BETWEEN 100 AND 250),
+    CONSTRAINT chk_client_weight CHECK (weight_kg IS NULL OR weight_kg BETWEEN 30 AND 300),
+    CONSTRAINT chk_client_objective_length CHECK (objective IS NULL OR char_length(objective) <= 500),
+    CONSTRAINT chk_client_cpf CHECK (cpf IS NULL OR cpf ~ '^[0-9]{11}$')
 );
 
 CREATE TRIGGER trg_client_profiles_updated_at

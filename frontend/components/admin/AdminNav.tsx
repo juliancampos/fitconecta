@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiPost } from "@/lib/admin/api";
@@ -8,7 +9,8 @@ import { apiPost } from "@/lib/admin/api";
 const links = [
   { href: "/admin/agendamentos", label: "Agendamentos" },
   { href: "/admin/pagamentos", label: "Pagamentos" },
-  { href: "/admin/usuarios", label: "Usuarios" },
+  { href: "/admin/profissionais", label: "Profissionais" },
+  { href: "/admin/clientes", label: "Clientes" },
 ];
 
 export function AdminNav() {
@@ -32,7 +34,7 @@ export function AdminNav() {
     <div className="flex h-full flex-col justify-between gap-6 p-4 lg:p-6">
       <div>
         <Link href="/admin/agendamentos" className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white">🦜</span>
+          <Image src="/images/logo-fitconecta.png" alt="" width={36} height={36} className="h-9 w-9 rounded-xl" />
           <span className="text-lg font-extrabold text-ink">
             FitConecta<span className="-ml-1 text-brand">+</span>
           </span>

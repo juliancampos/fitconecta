@@ -20,9 +20,20 @@ export function ProfessionalCard({
   const neighborhoodNames = (professional.neighborhoods ?? []).map(
     (n) => n.name,
   );
+  const isNutrition = professional.branch === "nutrition";
+  const councilName = isNutrition ? "CRN" : "CREF";
+  const councilNumber = isNutrition
+    ? professional.crn_number
+    : professional.cref_number;
+  const councilVerified = Boolean(
+    isNutrition ? professional.crn_verified_at : professional.cref_verified_at,
+  );
+  const councilSource = isNutrition
+    ? "na Consulta Nacional do CFN"
+    : "no portal do CREF6";
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-center gap-4 border-b border-slate-100 p-5">
         <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-soft text-lg font-bold text-brand">
           {professional.avatar_url ? (
@@ -44,16 +55,100 @@ export function ProfessionalCard({
           <p className="truncate text-sm text-muted">
             {professional.city}, {professional.state}
           </p>
+          {councilNumber && (
+            <span
+              title={
+                councilVerified
+                  ? `${councilName} validado ${councilSource}`
+                  : `${councilName} ainda não confirmado ${councilSource}`
+              }
+              className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                councilVerified
+                  ? "bg-emerald-50 text-emerald-600"
+                  : "bg-amber-50 text-amber-600"
+              }`}
+            >
+              {councilVerified ? (
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-3.5 w-3.5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-3.5 w-3.5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z"
+                  />
+                </svg>
+              )}
+              {councilVerified
+                ? `${councilName} verificado`
+                : `${councilName} em análise`}
+            </span>
+          )}
         </div>
-        {professional.reviews > 0 && (
-          <div className="ml-auto flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-600">
-            <span aria-hidden>★</span>
-            {professional.rating.toFixed(1)}
-          </div>
-        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-3 p-5">
+        {/* Linha propria para a tag do ramo nao tampar o nome. */}
+        <div className="flex items-center justify-between">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+              isNutrition
+                ? "bg-emerald-50 text-emerald-600"
+                : "bg-brand-soft text-brand"
+            }`}
+          >
+            {isNutrition ? (
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3 w-3"
+              >
+                <path d="M12 8c0-2 1-3.5 3-4M12 8c-4.5 0-7 3-7 8 0 3 2 5 4 5 1.5 0 2-1 3-1s1.5 1 3 1c2 0 4-2 4-5 0-5-2.5-8-7-8z" />
+              </svg>
+            ) : (
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                className="h-3 w-3"
+              >
+                <path d="M6.5 6.5v11M17.5 6.5v11M3.5 9.5v5M20.5 9.5v5M6.5 12h11" />
+              </svg>
+            )}
+            {isNutrition ? "Nutrição" : "Educação Física"}
+          </span>
+          {professional.reviews > 0 && (
+            <div className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-600">
+              <span aria-hidden>★</span>
+              {professional.rating.toFixed(1)}
+            </div>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-1.5">
           {specialtyNames.map((specialty) => (
             <span

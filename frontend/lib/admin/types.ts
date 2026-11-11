@@ -71,9 +71,23 @@ export interface AdminUser {
   state?: string;
   professional_id?: string;
   client_id?: string;
+  cref_number?: string;
+  cref_verified_at?: string;
   created_at: string;
   updated_at: string;
   future_appointments: number;
+}
+
+export interface CREFCheck {
+  verified: boolean;
+  reason:
+    | "ok"
+    | "no_cref"
+    | "not_found"
+    | "inactive"
+    | "unavailable"
+    | "cref_changed";
+  message: string;
 }
 
 export interface AdminAuthResponse {

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiErrorMessage, apiPost } from "@/lib/admin/api";
@@ -29,10 +30,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
-      <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-white p-6 shadow-2xl sm:p-8">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-surface p-6 shadow-2xl sm:p-8">
         <div className="flex items-center gap-2">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-white">🦜</span>
+          <Image src="/images/logo-fitconecta.png" alt="" width={40} height={40} className="h-10 w-10 rounded-xl" />
           <div>
             <p className="text-lg font-extrabold leading-none text-ink">
               FitConecta<span className="text-brand">+</span>

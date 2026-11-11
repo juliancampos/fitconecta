@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"fitconecta/core-api/internal/platform/httputil"
 	"fitconecta/core-api/internal/platform/middleware"
@@ -77,7 +78,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, ErrInvalidInput) {
-			httputil.Error(w, http.StatusBadRequest, err.Error())
+			httputil.Error(w, http.StatusBadRequest, strings.TrimPrefix(err.Error(), ErrInvalidInput.Error()+": "))
 			return
 		}
 		httputil.Error(w, http.StatusInternalServerError, "Erro interno ao cadastrar usuario")

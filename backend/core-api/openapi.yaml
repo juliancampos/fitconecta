@@ -33,25 +33,73 @@ paths:
                 password: { type: string, minLength: 8 }
                 role: { type: string, enum: [client, professional] }
                 name: { type: string }
-                city: { type: string }
-                state: { type: string, example: "MG" }
+                city:
+                  type: string
+                  description: >
+                    Opcional (ADR 0016): o cadastro do profissional vai até o
+                    registro do conselho; cidade/UF, especialidades, bairros,
+                    valor e bio são completados em PUT /professionals/me/profile.
+                    Sem valor, gravado como vazio (o perfil não aparece na
+                    vitrine até ser completado).
+                state:
+                  type: string
+                  example: "MG"
+                  description: Opcional (ADR 0016) — ver city.
                 phone: { type: string }
-                bio: { type: string }
-                session_price_cents: { type: integer, example: 10000 }
-                cref_number: { type: string }
+                bio:
+                  type: string
+                  description: Opcional (ADR 0016) — completado no perfil.
+                session_price_cents:
+                  type: integer
+                  example: 10000
+                  description: >
+                    Opcional (ADR 0016). Não informado (ou <= 0) assume o
+                    padrão 10000 (R$ 100,00); ajustável no perfil.
+                branch:
+                  type: string
+                  enum: [physical_education, nutrition]
+                  default: physical_education
+                  description: >
+                    Ramo do profissional (aplicável a role=professional). Ausente
+                    ou vazio assume physical_education (retrocompatível com
+                    clientes que só enviam cref_number); valor fora do conjunto
+                    retorna 400. Com branch=nutrition, crn_number é obrigatório
+                    e cref_number é ignorado (gravado null).
+                cref_number:
+                  type: string
+                  description: >
+                    Obrigatório para role=professional com branch=physical_education.
+                    A validação no portal público do CREF6 (MG) é informativa,
+                    não bloqueia o cadastro e roda em segundo plano; o resultado
+                    aparece em cref_verified_at.
+                crn_number:
+                  type: string
+                  description: >
+                    Obrigatório para branch=nutrition. A validação na Consulta
+                    Nacional de Nutricionistas (CNN/CFN) é informativa, não
+                    bloqueia o cadastro e roda em segundo plano; o resultado
+                    aparece em crn_verified_at.
                 specialty_ids:
                   type: array
-                  description: Especialidades do profissional (aplicável a role=professional)
+                  description: >
+                    Opcional (ADR 0016) — especialidades são vinculadas em
+                    PUT /professionals/me/specialties após o cadastro.
                   items: { type: integer }
                   example: [1, 4]
                 neighborhood_ids:
                   type: array
-                  description: Bairros de atuação do profissional (aplicável a role=professional)
+                  description: >
+                    Opcional (ADR 0016) — bairros são vinculados em
+                    PUT /professionals/me/neighborhoods após o cadastro.
                   items: { type: integer }
                   example: [1, 2, 3]
       responses:
         '201':
           description: Usuário cadastrado com sucesso
+        '400':
+          description: >
+            Dados inválidos, ramo fora do conjunto ou registro do conselho
+            (CREF/CRN) ausente para role=professional
         '409':
           description: E-mail já cadastrado
 
@@ -100,6 +148,72 @@ paths:
         '200':
           description: Dados do perfil do usuário
 
+  /clients/me/profile:
+    get:
+      summary: Dados pessoais e físicos do cliente autenticado
+      description: >
+        Derivados (IMC e idade) são calculados na resposta, nunca armazenados.
+        Todos os campos são opcionais; perfil sem dados devolve `null` em todos.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dados pessoais do cliente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/ClientPersonalProfile' }
+        '401':
+          description: Sem token ou token inválido
+        '403':
+          description: Papel diferente de client
+        '404':
+          description: Usuário sem perfil de cliente
+    put:
+      summary: Substitui os dados pessoais e físicos do cliente autenticado
+      description: >
+        Substituição total dos cinco campos: campo ausente ou `null` grava
+        "não informado". Responde com o mesmo objeto do GET.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                birth_date: { type: string, format: date, nullable: true, example: "1990-05-17" }
+                sex: { type: string, enum: [male, female, other], nullable: true }
+                height_cm: { type: integer, minimum: 100, maximum: 250, nullable: true }
+                weight_kg: { type: number, minimum: 30, maximum: 300, nullable: true, example: 64.5 }
+                activity_level: { type: string, enum: [sedentary, casual, frequent], nullable: true }
+                objective: { type: string, maxLength: 500, nullable: true, example: "Correr 5 km sem parar" }
+                cpf: { type: string, pattern: '^[0-9]{11}$', nullable: true, description: "Só os 11 dígitos; aceita máscara na entrada", example: "52998224725" }
+      responses:
+        '200':
+          description: Dados atualizados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/ClientPersonalProfile' }
+        '400':
+          description: Dados inválidos
+        '401':
+          description: Sem token ou token inválido
+        '403':
+          description: Papel diferente de client
+        '404':
+          description: Usuário sem perfil de cliente
+        '500':
+          description: Falha ao salvar
+
   /professionals:
     get:
       summary: Vitrine pública de profissionais autônomos (alimenta SEO e páginas públicas)
@@ -119,7 +233,10 @@ paths:
           description: Filtra profissionais que atuam no bairro informado
       responses:
         '200':
-          description: Lista de profissionais encontrados (inclui neighborhoods)
+          description: >
+            Lista de profissionais encontrados (inclui neighborhoods, branch
+            e cref_verified_at/crn_verified_at; null/ausente significa registro
+            em análise). O filtro por ramo é feito no cliente.
 
   /neighborhoods:
     get:
@@ -135,6 +252,72 @@ paths:
         '200':
           description: Lista de bairros ([{ id, name, city, state, slug }])
 
+  /professionals/cref/validate:
+    get:
+      summary: Consulta informativa do CREF no portal do CREF6 (MG)
+      description: >
+        Sempre responde 200 quando o número é informado; o resultado não
+        bloqueia o cadastro. `reason` é `not_found`, `inactive` ou `unavailable`.
+      parameters:
+        - name: number
+          in: query
+          required: true
+          schema: { type: string, example: "012345-G/MG" }
+      responses:
+        '200':
+          description: Resultado da consulta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    required: [valid, message]
+                    properties:
+                      valid: { type: boolean }
+                      reason: { type: string, enum: [not_found, inactive, unavailable] }
+                      message: { type: string }
+                      number: { type: string, description: "Número canônico quando encontrado" }
+                      name: { type: string, description: "Nome no portal quando encontrado" }
+        '400':
+          description: Número não informado
+
+  /professionals/crn/validate:
+    get:
+      summary: Consulta informativa do CRN na Consulta Nacional de Nutricionistas (CFN)
+      description: >
+        Sempre responde 200 quando o número é informado; o resultado não
+        bloqueia o cadastro. `reason` é `not_found`, `inactive` ou `unavailable`.
+        Aceita o regional como prefixo do número ("CRN9 39104", "9-39104") ou
+        apenas o registro ("39104").
+      parameters:
+        - name: number
+          in: query
+          required: true
+          schema: { type: string, example: "CRN9 39104" }
+      responses:
+        '200':
+          description: Resultado da consulta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    required: [valid, message]
+                    properties:
+                      valid: { type: boolean }
+                      reason: { type: string, enum: [not_found, inactive, unavailable] }
+                      message: { type: string }
+                      number: { type: string, description: "Número canônico quando encontrado (ex.: CRN9 39104)" }
+                      name: { type: string, description: "Nome na CNN quando encontrado" }
+        '400':
+          description: Número não informado
+
   /professionals/{id}:
     get:
       summary: Detalhes do profissional e modalidades
@@ -145,7 +328,9 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         '200':
-          description: Perfil do profissional
+          description: >
+            Perfil do profissional (inclui branch, cref_verified_at e
+            crn_verified_at, quando verificado)
 
   /professionals/{id}/slots:
     get:
@@ -169,7 +354,9 @@ paths:
         - BearerAuth: []
       responses:
         '200':
-          description: Perfil do profissional (inclui avatar_url e photos)
+          description: >
+            Perfil do profissional (inclui avatar_url, photos, branch e
+            cref_verified_at/crn_verified_at; null significa registro em análise)
     put:
       summary: Atualiza o perfil do profissional autenticado
       security:
@@ -186,10 +373,26 @@ paths:
                 city: { type: string }
                 state: { type: string }
                 session_price_cents: { type: integer, example: 15000 }
-                cref_number: { type: string }
+                cref_number:
+                  type: string
+                  description: >
+                    A validação no portal público do CREF6 (MG) é informativa,
+                    não bloqueia o salvamento e roda em segundo plano. Mudar o
+                    número limpa cref_verified_at até a nova consulta.
+                crn_number:
+                  type: string
+                  description: >
+                    Registro do ramo nutrição. A validação na CNN do CFN é
+                    informativa e roda em segundo plano; mudar o número limpa
+                    crn_verified_at até a nova consulta. O ramo (branch) é
+                    imutável e não é aceito nesta rota.
       responses:
         '200':
           description: Perfil atualizado
+        '400':
+          description: >
+            Nome de exibição ausente, valor da sessão <= 0 ou cidade/UF vazias
+            (ADR 0016: "informe a cidade" / "informe a UF")
 
   /professionals/me/specialties:
     put:
@@ -452,3 +655,20 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    ClientPersonalProfile:
+      type: object
+      description: >
+        Dados pessoais e físicos do cliente (ADR 0012). Todos os campos são
+        opcionais; `null` significa "não informado". `bmi` e `age` são
+        calculados na leitura e nunca armazenados.
+      properties:
+        birth_date: { type: string, format: date, nullable: true, example: "1990-05-17" }
+        sex: { type: string, enum: [male, female, other], nullable: true }
+        height_cm: { type: integer, minimum: 100, maximum: 250, nullable: true, example: 168 }
+        weight_kg: { type: number, minimum: 30, maximum: 300, nullable: true, example: 64.5 }
+        activity_level: { type: string, enum: [sedentary, casual, frequent], nullable: true }
+        objective: { type: string, maxLength: 500, nullable: true, example: "Correr 5 km sem parar" }
+        cpf: { type: string, pattern: '^[0-9]{11}$', nullable: true, description: "Só os 11 dígitos, sem máscara", example: "52998224725" }
+        bmi: { type: number, nullable: true, description: "peso / (altura/100)^2, 1 casa decimal", example: 22.9 }
+        age: { type: integer, nullable: true, description: "anos completos em America/Sao_Paulo", example: 36 }

@@ -6,6 +6,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// Ramos do profissional: decidem qual registro de conselho ele informa.
+const (
+	BranchPhysicalEducation = "physical_education"
+	BranchNutrition         = "nutrition"
+)
+
 type Specialty struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
@@ -45,6 +51,10 @@ type ProfessionalProfile struct {
 	Timezone           string              `json:"timezone"`
 	SessionPriceCents  int                 `json:"session_price_cents"`
 	CREFNumber         *string             `json:"cref_number,omitempty"`
+	CREFVerifiedAt     *time.Time          `json:"cref_verified_at,omitempty"`
+	Branch             string              `json:"branch"`
+	CRNNumber          *string             `json:"crn_number,omitempty"`
+	CRNVerifiedAt      *time.Time          `json:"crn_verified_at,omitempty"`
 	AvatarURL          *string             `json:"avatar_url,omitempty"`
 	RatingAvg          float64             `json:"rating"`
 	ReviewsCount       int                 `json:"reviews"`
@@ -108,4 +118,6 @@ type UpdateProfileRequest struct {
 	State             string `json:"state"`
 	SessionPriceCents int    `json:"session_price_cents"`
 	CREFNumber        string `json:"cref_number"`
+	// branch nao entra aqui: o ramo e imutavel apos o cadastro (ADR 0014).
+	CRNNumber string `json:"crn_number"`
 }

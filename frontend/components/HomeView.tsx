@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { Card } from "@/components/Card";
 import {
   EMPTY_FILTERS,
@@ -103,6 +104,9 @@ export function HomeView() {
       ) {
         return false;
       }
+      if (filters.branch && professional.branch !== filters.branch) {
+        return false;
+      }
       if (
         filters.specialty &&
         !(professional.specialties ?? []).some(
@@ -154,13 +158,23 @@ export function HomeView() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-ink sm:text-3xl">
-          Encontre seu personal trainer
-        </h1>
-        <p className="mt-1 text-muted">
-          Filtre por nome, serviço, data e horário e agende na hora.
-        </p>
+      <div className="mb-6 flex items-center gap-6 overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-brand/20 via-surface to-accent/10 px-6 py-5 sm:px-8">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold text-ink sm:text-3xl">
+            Encontre seu personal trainer
+          </h1>
+          <p className="mt-1 text-muted">
+            Filtre por nome, serviço, data e horário e agende na hora.
+          </p>
+        </div>
+        <Image
+          src="/images/corredor-velocidade.png"
+          alt=""
+          width={900}
+          height={809}
+          priority
+          className="hidden w-44 shrink-0 drop-shadow-[0_0_35px_rgba(56,189,248,0.35)] sm:block"
+        />
       </div>
 
       <FilterBar
@@ -182,10 +196,14 @@ export function HomeView() {
           ))}
         </div>
       ) : (
-        <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
-          <span className="text-4xl" aria-hidden>
-            🦜
-          </span>
+        <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-surface px-6 py-16 text-center">
+          <Image
+            src="/images/mascote-corrida.png"
+            alt=""
+            width={900}
+            height={897}
+            className="h-20 w-20"
+          />
           <h2 className="text-lg font-semibold text-ink">
             Nenhum profissional encontrado
           </h2>

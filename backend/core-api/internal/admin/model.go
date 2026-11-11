@@ -68,9 +68,19 @@ type AdminUser struct {
 	State              string     `json:"state,omitempty"`
 	ProfessionalID     *uuid.UUID `json:"professional_id,omitempty"`
 	ClientID           *uuid.UUID `json:"client_id,omitempty"`
+	CREFNumber         *string    `json:"cref_number,omitempty"`
+	CREFVerifiedAt     *time.Time `json:"cref_verified_at,omitempty"`
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 	FutureAppointments int64      `json:"future_appointments"`
+}
+
+// CREFCheck é o resultado de uma nova consulta ao portal do CREF6.
+// Reason: ok | no_cref | not_found | inactive | unavailable.
+type CREFCheck struct {
+	Verified bool   `json:"verified"`
+	Reason   string `json:"reason"`
+	Message  string `json:"message"`
 }
 
 type PaymentSummary struct {

@@ -44,7 +44,7 @@ export function PageHeader({
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-slate-200 bg-surface shadow-sm ${className}`}>{children}</div>;
 }
 
 export function Pagination({
@@ -73,7 +73,7 @@ export function Pagination({
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={disabled || page <= 1}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg border border-slate-200 bg-surface px-3 py-1.5 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Anterior
         </button>
@@ -84,7 +84,7 @@ export function Pagination({
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={disabled || page >= totalPages}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg border border-slate-200 bg-surface px-3 py-1.5 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Proxima
         </button>
@@ -116,7 +116,7 @@ export function TableState({ loading, empty, colSpan }: { loading: boolean; empt
 }
 
 export const inputClass =
-  "h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
+  "h-10 w-full rounded-lg border border-slate-200 bg-surface px-3 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
 
 export const labelClass = "mb-1 block text-xs font-semibold uppercase tracking-wide text-muted";
 
@@ -124,7 +124,7 @@ export const primaryButtonClass =
   "inline-flex h-10 items-center justify-center rounded-lg bg-brand px-4 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60";
 
 export const secondaryButtonClass =
-  "inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-surface px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40";
 
 export const dangerButtonClass =
   "inline-flex h-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40";

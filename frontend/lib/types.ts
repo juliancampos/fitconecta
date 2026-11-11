@@ -40,6 +40,8 @@ export interface Neighborhood {
   slug?: string;
 }
 
+export type ProfessionalBranch = "physical_education" | "nutrition";
+
 export interface ProfessionalProfile {
   id: string;
   user_id: string;
@@ -49,7 +51,11 @@ export interface ProfessionalProfile {
   state: string;
   timezone: string;
   session_price_cents: number;
+  branch: ProfessionalBranch;
   cref_number?: string;
+  cref_verified_at?: string;
+  crn_number?: string;
+  crn_verified_at?: string;
   avatar_url?: string;
   rating: number;
   reviews: number;
@@ -62,6 +68,21 @@ export interface ProfessionalProfile {
   audience_experience?: string | null;
   locations?: ServiceLocation[];
   photos?: ProfessionalPhoto[];
+}
+
+export type ClientSex = "male" | "female" | "other";
+export type ClientActivityLevel = "sedentary" | "casual" | "frequent";
+
+export interface ClientPersonalProfile {
+  birth_date: string | null;
+  sex: ClientSex | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  activity_level: ClientActivityLevel | null;
+  objective: string | null;
+  cpf: string | null;
+  bmi: number | null;
+  age: number | null;
 }
 
 export interface Slot {

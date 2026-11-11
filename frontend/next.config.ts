@@ -24,6 +24,12 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**" },
     ],
   },
+  async redirects() {
+    return [
+      // O menu "Usuarios" virou "Profissionais" e "Clientes".
+      { source: "/admin/usuarios", destination: "/admin/profissionais", permanent: false },
+    ];
+  },
   async headers() {
     return [
       {

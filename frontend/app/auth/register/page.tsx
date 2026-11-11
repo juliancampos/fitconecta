@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiErrorMessage, apiGet, apiPost } from "@/lib/api";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
-import { NeighborhoodPicker } from "@/components/NeighborhoodPicker";
-import type { ApiEnvelope, Neighborhood, Specialty } from "@/lib/types";
+import type { ApiEnvelope, ProfessionalBranch } from "@/lib/types";
 
 type Role = "client" | "professional";
+
+type CouncilCheck =
+  | { status: "verified"; number: string; name: string }
+  | { status: "pending"; message: string };
 
 interface FormState {
   role: Role;
@@ -19,13 +23,9 @@ interface FormState {
   birthdate: string;
   password: string;
   confirmPassword: string;
+  branch: ProfessionalBranch;
   cref: string;
-  city: string;
-  state: string;
-  specialtyIds: number[];
-  neighborhoods: Neighborhood[];
-  sessionPrice: string;
-  bio: string;
+  crn: string;
   acceptTerms: boolean;
 }
 
@@ -39,13 +39,9 @@ const initialState: FormState = {
   birthdate: "",
   password: "",
   confirmPassword: "",
+  branch: "physical_education",
   cref: "",
-  city: "",
-  state: "",
-  specialtyIds: [],
-  neighborhoods: [],
-  sessionPrice: "",
-  bio: "",
+  crn: "",
   acceptTerms: false,
 };
 
@@ -86,14 +82,10 @@ function validate(form: FormState): Errors {
     errors.confirmPassword = "As senhas não conferem.";
   }
   if (form.role === "professional") {
-    if (!form.cref.trim()) errors.cref = "Informe o número do CREF.";
-    if (!form.city.trim()) errors.city = "Informe a cidade.";
-    if (!form.state.trim()) errors.state = "Informe a UF.";
-    if (form.specialtyIds.length === 0) {
-      errors.specialtyIds = "Selecione ao menos uma especialidade.";
-    }
-    if (form.sessionPrice && Number(form.sessionPrice) <= 0) {
-      errors.sessionPrice = "Informe um valor válido.";
+    if (form.branch === "nutrition") {
+      if (!form.crn.trim()) errors.crn = "Informe o número do CRN.";
+    } else if (!form.cref.trim()) {
+      errors.cref = "Informe o número do CREF.";
     }
   }
   if (!form.acceptTerms) {
@@ -103,36 +95,140 @@ function validate(form: FormState): Errors {
   return errors;
 }
 
+function CouncilCheckStatus({
+  council,
+  checking,
+  check,
+}: {
+  council: "cref" | "crn";
+  checking: boolean;
+  check: CouncilCheck | null;
+}) {
+  const label = council === "cref" ? "CREF" : "CRN";
+  if (checking) {
+    return (
+      <span className="text-xs text-muted">
+        {council === "cref"
+          ? "Conferindo CREF no portal do CREF6..."
+          : "Conferindo CRN na Consulta Nacional do CFN..."}
+      </span>
+    );
+  }
+  if (check?.status === "verified") {
+    return (
+      <span
+        role="status"
+        className="flex items-start gap-1.5 text-xs font-medium text-emerald-600"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="mt-px h-4 w-4 shrink-0"
+        >
+          <path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z"
+          />
+        </svg>
+        <span>
+          {label} verificado: {check.number}
+          {check.name ? ` — ${check.name}` : ""}
+        </span>
+      </span>
+    );
+  }
+  if (check?.status === "pending") {
+    return (
+      <span
+        role="status"
+        className="flex items-start gap-1.5 text-xs font-medium text-amber-600"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="mt-px h-4 w-4 shrink-0"
+        >
+          <path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z"
+          />
+        </svg>
+        <span>
+          {label} em análise. {check.message} O cadastro pode ser concluído
+          normalmente.
+        </span>
+      </span>
+    );
+  }
+  return null;
+}
+
 export default function RegisterPage() {
   const [form, setForm] = useState<FormState>(initialState);
   const [errors, setErrors] = useState<Errors>({});
   const [loading, setLoading] = useState(false);
-  const [specialties, setSpecialties] = useState<Specialty[]>([]);
+  const [councilChecking, setCouncilChecking] = useState(false);
+  const [crefCheck, setCrefCheck] = useState<CouncilCheck | null>(null);
+  const [crnCheck, setCrnCheck] = useState<CouncilCheck | null>(null);
+  const councilCheckId = useRef(0);
   const router = useRouter();
-
-  useEffect(() => {
-    let active = true;
-    apiGet<ApiEnvelope<Specialty[]>>("/api/v1/specialties")
-      .then((res) => {
-        if (active && res.data) setSpecialties(res.data);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function toggleSpecialty(id: number) {
-    setForm((prev) => ({
-      ...prev,
-      specialtyIds: prev.specialtyIds.includes(id)
-        ? prev.specialtyIds.filter((specialtyId) => specialtyId !== id)
-        : [...prev.specialtyIds, id],
-    }));
+  // Consulta informativa do conselho (CREF/CRN) no blur: nunca bloqueia o cadastro.
+  async function checkCouncil(
+    council: "cref" | "crn",
+    value: string,
+    setCheck: (check: CouncilCheck | null) => void,
+  ) {
+    const label = council === "cref" ? "CREF" : "CRN";
+    const number = value.trim();
+    const checkId = ++councilCheckId.current;
+    if (!number) {
+      setCouncilChecking(false);
+      setCheck(null);
+      return;
+    }
+
+    setCouncilChecking(true);
+    try {
+      const res = await apiGet<
+        ApiEnvelope<{
+          valid: boolean;
+          message?: string;
+          number?: string;
+          name?: string;
+        }>
+      >(`/api/v1/professionals/${council}/validate?number=${encodeURIComponent(number)}`);
+      if (checkId !== councilCheckId.current) return;
+      const data = res.data;
+      setCheck(
+        data?.valid
+          ? {
+              status: "verified",
+              number: data.number ?? number,
+              name: data.name ?? "",
+            }
+          : {
+              status: "pending",
+              message: data?.message ?? `Não foi possível validar o ${label}.`,
+            },
+      );
+    } catch {
+      if (checkId !== councilCheckId.current) return;
+      setCheck({
+        status: "pending",
+        message: `Não foi possível validar o ${label} agora.`,
+      });
+    } finally {
+      if (checkId === councilCheckId.current) setCouncilChecking(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -143,31 +239,36 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await apiPost("/api/v1/auth/register", {
+      const res = await apiPost<ApiEnvelope<{ user: { role: string } }>>("/api/v1/auth/register", {
         email: form.email,
         password: form.password,
         role: form.role,
         name: form.name,
         phone: onlyDigits(form.phone),
         birthdate: form.birthdate,
-        cref_number: form.cref,
-        city: form.city,
-        state: form.state,
-        specialty_ids:
-          form.role === "professional" ? form.specialtyIds : undefined,
-        neighborhood_ids:
-          form.role === "professional"
-            ? form.neighborhoods.map((n) => n.id)
+        branch: form.role === "professional" ? form.branch : undefined,
+        cref_number:
+          form.role === "professional" && form.branch === "physical_education"
+            ? form.cref
             : undefined,
-        bio: form.role === "professional" ? form.bio : undefined,
-        session_price_cents:
-          form.role === "professional" && form.sessionPrice
-            ? Math.round(Number(form.sessionPrice) * 100)
+        crn_number:
+          form.role === "professional" && form.branch === "nutrition"
+            ? form.crn
             : undefined,
       });
-      router.push("/auth/login");
-    } catch {
-      setErrors({ form: "Não foi possível concluir o cadastro. Tente novamente." });
+      // Cadastro minimo: o profissional segue para o perfil completar os
+      // dados (ADRs 0015 e 0016); o cliente vai direto para a vitrine.
+      const role = res.data?.user.role;
+      router.push(
+        role === "professional" ? "/app/professional/perfil" : "/app/client",
+      );
+    } catch (error) {
+      setErrors({
+        form: apiErrorMessage(
+          error,
+          "Não foi possível concluir o cadastro. Tente novamente.",
+        ),
+      });
     } finally {
       setLoading(false);
     }
@@ -180,9 +281,13 @@ export default function RegisterPage() {
           href="/auth/login"
           className="inline-flex items-center gap-2 text-lg font-extrabold text-ink"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white">
-            🦜
-          </span>
+          <Image
+            src="/images/logo-fitconecta.png"
+            alt=""
+            width={36}
+            height={36}
+            className="h-9 w-9 rounded-xl"
+          />
           FitConecta<span className="-ml-2 text-brand">+</span>
         </Link>
       </div>
@@ -216,7 +321,7 @@ export default function RegisterPage() {
             onClick={() => update("role", value)}
             className={`rounded-lg py-2 text-sm font-semibold transition ${
               form.role === value
-                ? "bg-white text-ink shadow-sm"
+                ? "bg-surface text-ink shadow-sm"
                 : "text-muted hover:text-ink"
             }`}
           >
@@ -274,111 +379,95 @@ export default function RegisterPage() {
 
         {form.role === "professional" && (
           <>
-            <Input
-              label="Registro CREF"
-              name="cref"
-              placeholder="000000-G/UF"
-              required
-              value={form.cref}
-              onChange={(e) => update("cref", e.target.value)}
-              error={errors.cref}
-            />
-
-            <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
-              <Input
-                label="Cidade"
-                name="city"
-                placeholder="Belo Horizonte"
-                required
-                value={form.city}
-                onChange={(e) => update("city", e.target.value)}
-                error={errors.city}
-              />
-              <Input
-                label="UF"
-                name="state"
-                placeholder="MG"
-                maxLength={2}
-                required
-                value={form.state}
-                onChange={(e) =>
-                  update("state", e.target.value.toUpperCase())
-                }
-                error={errors.state}
-              />
-            </div>
-
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-ink">
-                Especialidades<span className="text-brand"> *</span>
+                Ramo de atuação
               </span>
-              <div className="flex flex-wrap gap-2">
-                {specialties.length === 0 && (
-                  <span className="text-xs text-muted">
-                    Carregando especialidades...
-                  </span>
-                )}
-                {specialties.map((specialty) => {
-                  const selected = form.specialtyIds.includes(specialty.id);
-                  return (
-                    <button
-                      key={specialty.id}
-                      type="button"
-                      onClick={() => toggleSpecialty(specialty.id)}
-                      aria-pressed={selected}
-                      className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                        selected
-                          ? "bg-brand text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      {specialty.name}
-                    </button>
-                  );
-                })}
+              <div
+                role="group"
+                aria-label="Ramo de atuação"
+                className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1"
+              >
+                {(
+                  [
+                    ["physical_education", "Educação Física"],
+                    ["nutrition", "Nutrição"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={form.branch === value}
+                    onClick={() => {
+                      update("branch", value);
+                      // Descarta consultas em voo e limpa os selos do outro ramo.
+                      councilCheckId.current++;
+                      setCouncilChecking(false);
+                      setCrefCheck(null);
+                      setCrnCheck(null);
+                    }}
+                    className={`rounded-lg py-2 text-sm font-semibold transition ${
+                      form.branch === value
+                        ? "bg-surface text-ink shadow-sm"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-              {errors.specialtyIds && (
-                <span className="text-xs font-medium text-red-600">
-                  {errors.specialtyIds}
-                </span>
-              )}
             </div>
 
-            <NeighborhoodPicker
-              selected={form.neighborhoods}
-              onChange={(list) => update("neighborhoods", list)}
-              defaultCity={form.city}
-              defaultState={form.state}
-            />
+            {form.branch === "physical_education" && (
+              <div className="flex flex-col gap-1.5">
+                <Input
+                  label="Registro CREF"
+                  name="cref"
+                  placeholder="000000-G/UF"
+                  required
+                  value={form.cref}
+                  onChange={(e) => {
+                    update("cref", e.target.value);
+                    setCrefCheck(null);
+                  }}
+                  onBlur={(e) => checkCouncil("cref", e.target.value, setCrefCheck)}
+                  error={errors.cref}
+                />
+                <CouncilCheckStatus
+                  council="cref"
+                  checking={councilChecking}
+                  check={crefCheck}
+                />
+              </div>
+            )}
 
-            <Input
-              label="Valor da sessão (R$)"
-              name="sessionPrice"
-              type="number"
-              inputMode="decimal"
-              min="1"
-              step="1"
-              placeholder="100"
-              value={form.sessionPrice}
-              onChange={(e) => update("sessionPrice", e.target.value)}
-              error={errors.sessionPrice}
-              hint="Se deixar em branco, usamos R$ 100,00 como valor padrão."
-            />
+            {form.branch === "nutrition" && (
+              <div className="flex flex-col gap-1.5">
+                <Input
+                  label="Registro CRN"
+                  name="crn"
+                  placeholder="CRN9 12345 ou 12345"
+                  required
+                  value={form.crn}
+                  onChange={(e) => {
+                    update("crn", e.target.value);
+                    setCrnCheck(null);
+                  }}
+                  onBlur={(e) => checkCouncil("crn", e.target.value, setCrnCheck)}
+                  error={errors.crn}
+                />
+                <CouncilCheckStatus
+                  council="crn"
+                  checking={councilChecking}
+                  check={crnCheck}
+                />
+              </div>
+            )}
 
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="bio" className="text-sm font-medium text-ink">
-                Bio / apresentação
-              </label>
-              <textarea
-                id="bio"
-                name="bio"
-                rows={3}
-                placeholder="Conte sobre sua experiência, métodos e diferenciais."
-                value={form.bio}
-                onChange={(e) => update("bio", e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/20"
-              />
-            </div>
+            <p className="text-sm text-muted">
+              Cidade, especialidades, valor da sessão e demais dados você
+              completa no seu perfil logo após o cadastro.
+            </p>
           </>
         )}
 

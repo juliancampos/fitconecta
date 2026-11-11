@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -23,6 +24,7 @@ type Repository interface {
 	ListUsers(ctx context.Context, f UserFilters) (Page[AdminUser], error)
 	GetUser(ctx context.Context, id uuid.UUID) (*AdminUser, error)
 	UpdateUserStatus(ctx context.Context, adminID, targetID uuid.UUID, status, reason, ip, userAgent string) (*UpdateUserStatusResponse, error)
+	SetProfessionalCREFVerified(ctx context.Context, adminID, userID uuid.UUID, number string, verifiedAt *time.Time, reason, ip, userAgent string) (bool, error)
 }
 
 type pgRepository struct {
@@ -69,7 +71,7 @@ const userSelect = `
 	SELECT u.id, u.email, u.role::text, u.status::text, u.status_reason, u.status_changed_at,
 	       COALESCE(cp.name, pp.display_name, u.email) AS display_name,
 	       COALESCE(cp.phone, ''), COALESCE(cp.city, ''), COALESCE(cp.state, ''),
-	       pp.id, cp.id, u.created_at, u.updated_at
+	       pp.id, pp.cref_number, pp.cref_verified_at, cp.id, u.created_at, u.updated_at
 	FROM users u
 	LEFT JOIN client_profiles cp ON cp.user_id = u.id
 	LEFT JOIN professional_profiles pp ON pp.user_id = u.id
@@ -129,7 +131,7 @@ func scanUser(row scanner) (*AdminUser, error) {
 	if err := row.Scan(
 		&u.ID, &u.Email, &u.Role, &u.Status, &u.StatusReason, &u.StatusChangedAt,
 		&u.DisplayName, &u.Phone, &u.City, &u.State,
-		&u.ProfessionalID, &u.ClientID, &u.CreatedAt, &u.UpdatedAt,
+		&u.ProfessionalID, &u.CREFNumber, &u.CREFVerifiedAt, &u.ClientID, &u.CreatedAt, &u.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -515,6 +517,39 @@ func (r *pgRepository) ListUsers(ctx context.Context, f UserFilters) (Page[Admin
 	}
 
 	return Page[AdminUser]{Items: items, Page: f.Page, PageSize: f.PageSize, Total: total}, nil
+}
+
+// SetProfessionalCREFVerified grava (ou limpa) a data da verificacao apenas se o
+// CREF ainda for o numero consultado, e registra a acao na auditoria.
+// Devolve false quando o numero mudou durante a consulta.
+func (r *pgRepository) SetProfessionalCREFVerified(ctx context.Context, adminID, userID uuid.UUID, number string, verifiedAt *time.Time, reason, ip, userAgent string) (bool, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return false, fmt.Errorf("falha ao iniciar transacao: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx, `
+		UPDATE professional_profiles
+		SET cref_verified_at = $1
+		WHERE user_id = $2 AND btrim(cref_number) = btrim($3);
+	`, verifiedAt, userID, number)
+	if err != nil {
+		return false, fmt.Errorf("erro ao gravar verificacao do CREF: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return false, nil
+	}
+	if err := insertAudit(ctx, tx, adminID, "user_cref_revalidated", "user", userID, map[string]any{
+		"reason":      reason,
+		"cref_number": number,
+	}, ip, userAgent); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, fmt.Errorf("erro ao confirmar verificacao do CREF: %w", err)
+	}
+	return true, nil
 }
 
 func (r *pgRepository) GetUser(ctx context.Context, id uuid.UUID) (*AdminUser, error) {

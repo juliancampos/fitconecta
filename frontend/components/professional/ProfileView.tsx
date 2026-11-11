@@ -6,7 +6,7 @@ import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { NeighborhoodPicker } from "@/components/NeighborhoodPicker";
-import { apiPut } from "@/lib/api";
+import { apiErrorMessage, apiPut } from "@/lib/api";
 import { OTHER_AUDIENCE_NAME, listCatalogs } from "@/lib/catalog";
 import {
   MAX_PHOTOS,
@@ -20,6 +20,7 @@ import {
 import type {
   Catalogs,
   Neighborhood,
+  ProfessionalBranch,
   ProfessionalPhoto,
 } from "@/lib/types";
 
@@ -77,7 +78,9 @@ export function ProfileView() {
   const [saving, setSaving] = useState(false);
 
   const [displayName, setDisplayName] = useState("");
+  const [branch, setBranch] = useState<ProfessionalBranch>("physical_education");
   const [cref, setCref] = useState("");
+  const [crn, setCrn] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [sessionPrice, setSessionPrice] = useState("");
@@ -119,7 +122,9 @@ export function ProfileView() {
         setCatalogs(catalogData);
         if (profile) {
           setDisplayName(profile.display_name);
+          setBranch(profile.branch ?? "physical_education");
           setCref(profile.cref_number ?? "");
+          setCrn(profile.crn_number ?? "");
           setCity(profile.city);
           setState(profile.state);
           setSessionPrice(
@@ -254,7 +259,8 @@ export function ProfileView() {
         city,
         state,
         session_price_cents: Math.round(Number(sessionPrice || "0") * 100),
-        cref_number: cref,
+        cref_number: branch === "nutrition" ? "" : cref,
+        crn_number: branch === "nutrition" ? crn : "",
       });
       await apiPut("/api/v1/professionals/me/specialties", {
         specialty_ids: selectedIds,
@@ -272,8 +278,13 @@ export function ProfileView() {
         location_ids: locationIds,
       });
       setSuccess("Perfil atualizado com sucesso.");
-    } catch {
-      setError("Não foi possível salvar o perfil. Verifique os dados.");
+    } catch (error) {
+      setError(
+        apiErrorMessage(
+          error,
+          "Não foi possível salvar o perfil. Verifique os dados.",
+        ),
+      );
     } finally {
       setSaving(false);
     }
@@ -421,13 +432,23 @@ export function ProfileView() {
             onChange={(e) => setDisplayName(e.target.value)}
           />
 
-          <Input
-            label="Registro CREF"
-            name="cref_number"
-            placeholder="000000-G/UF"
-            value={cref}
-            onChange={(e) => setCref(e.target.value)}
-          />
+          {branch === "nutrition" ? (
+            <Input
+              label="Registro CRN"
+              name="crn_number"
+              placeholder="CRN9 12345 ou 12345"
+              value={crn}
+              onChange={(e) => setCrn(e.target.value)}
+            />
+          ) : (
+            <Input
+              label="Registro CREF"
+              name="cref_number"
+              placeholder="000000-G/UF"
+              value={cref}
+              onChange={(e) => setCref(e.target.value)}
+            />
+          )}
 
           <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
             <Input
@@ -555,7 +576,7 @@ export function ProfileView() {
                   required
                   value={audienceOther}
                   onChange={(e) => setAudienceOther(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                  className="w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
               </div>
             )}
@@ -575,7 +596,7 @@ export function ProfileView() {
                   rows={3}
                   value={audienceExperience}
                   onChange={(e) => setAudienceExperience(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                  className="w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
               </div>
             )}
@@ -616,7 +637,7 @@ export function ProfileView() {
               rows={4}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+              className="w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
             />
           </div>
 

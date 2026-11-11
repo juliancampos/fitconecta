@@ -8,6 +8,7 @@ export interface Filters {
   neighborhood: string;
   date: string;
   time: string;
+  branch: string;
 }
 
 export const EMPTY_FILTERS: Filters = {
@@ -16,6 +17,7 @@ export const EMPTY_FILTERS: Filters = {
   neighborhood: "",
   date: "",
   time: "",
+  branch: "",
 };
 
 export interface TimeRange {
@@ -51,7 +53,7 @@ export function FilterBar({
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <section className="rounded-2xl border border-slate-200 bg-surface p-4 shadow-sm sm:p-5">
       <div className="grid gap-3">
         <div className="relative">
           <span
@@ -65,16 +67,27 @@ export function FilterBar({
             placeholder="Buscar por nome do profissional"
             value={value.query}
             onChange={(e) => set({ query: e.target.value })}
-            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/20"
+            className="w-full rounded-xl border border-slate-300 bg-surface py-2.5 pl-10 pr-3.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <select
+            aria-label="Tipo de profissional"
+            value={value.branch}
+            onChange={(e) => set({ branch: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+          >
+            <option value="">Todos os tipos</option>
+            <option value="physical_education">Educação Física</option>
+            <option value="nutrition">Nutrição</option>
+          </select>
+
           <select
             aria-label="Serviço"
             value={value.specialty}
             onChange={(e) => set({ specialty: e.target.value })}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+            className="w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
           >
             <option value="">Todos os serviços</option>
             {specialties.map((specialty) => (
@@ -88,7 +101,7 @@ export function FilterBar({
             aria-label="Bairro"
             value={value.neighborhood}
             onChange={(e) => set({ neighborhood: e.target.value })}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+            className="w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
           >
             <option value="">Todos os bairros</option>
             {neighborhoods.map((neighborhood) => (
@@ -103,14 +116,14 @@ export function FilterBar({
             aria-label="Data"
             value={value.date}
             onChange={(e) => set({ date: e.target.value })}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+            className="w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
 
           <select
             aria-label="Horário"
             value={value.time}
             onChange={(e) => set({ time: e.target.value })}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+            className="w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
           >
             <option value="">Qualquer horário</option>
             {TIME_RANGES.map((range) => (

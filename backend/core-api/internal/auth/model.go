@@ -36,7 +36,9 @@ type RegisterRequest struct {
 	Phone             string `json:"phone,omitempty"`               // Telefone do cliente
 	Bio               string `json:"bio,omitempty"`                 // Bio do profissional
 	SessionPriceCents int    `json:"session_price_cents,omitempty"` // Valor da sessao em centavos
-	CREFNumber        string `json:"cref_number,omitempty"`         // Registro CREF (opcional no inicio)
+	Branch            string `json:"branch,omitempty"`              // Ramo do profissional: physical_education (padrao) ou nutrition
+	CREFNumber        string `json:"cref_number,omitempty"`         // Registro CREF (obrigatorio quando ramo = physical_education)
+	CRNNumber         string `json:"crn_number,omitempty"`          // Registro CRN (obrigatorio quando ramo = nutrition)
 	SpecialtyIDs      []int  `json:"specialty_ids,omitempty"`       // Especialidades do profissional
 	NeighborhoodIDs   []int  `json:"neighborhood_ids,omitempty"`    // Bairros de atuacao do profissional
 }

@@ -16,6 +16,9 @@ import (
 	"fitconecta/core-api/internal/appointments"
 	"fitconecta/core-api/internal/auth"
 	"fitconecta/core-api/internal/availability"
+	"fitconecta/core-api/internal/clients"
+	"fitconecta/core-api/internal/cref"
+	"fitconecta/core-api/internal/crn"
 	"fitconecta/core-api/internal/payments"
 	"fitconecta/core-api/internal/platform/config"
 	"fitconecta/core-api/internal/platform/db"
@@ -69,11 +72,13 @@ func main() {
 
 	// Iniciar repositorios e servicos
 	authRepo := auth.NewRepository(dbPool)
-	authService := auth.NewService(authRepo, cfg.JWTSecret, cfg.JWTExpirationHours)
+	crefValidator := cref.NewClient()
+	crnValidator := crn.NewClient()
+	authService := auth.NewService(authRepo, cfg.JWTSecret, cfg.JWTExpirationHours, crefValidator, crnValidator)
 	authHandler := auth.NewHandler(authService, cfg.CookieSecure)
 
 	profRepo := professionals.NewRepository(dbPool)
-	profService := professionals.NewService(profRepo)
+	profService := professionals.NewService(profRepo, crefValidator, crnValidator)
 
 	// Origens permitidas (separadas por virgula). Nao usar "*" para que o
 	// cookie de sessao (AllowCredentials) funcione: o navegador exige a
@@ -121,6 +126,10 @@ func main() {
 
 	profHandler := professionals.NewHandler(profService, mediaClient)
 
+	clientsRepo := clients.NewRepository(dbPool)
+	clientsService := clients.NewService(clientsRepo)
+	clientsHandler := clients.NewHandler(clientsService)
+
 	availRepo := availability.NewRepository(dbPool)
 	availService := availability.NewService(availRepo)
 	availHandler := availability.NewHandler(availService, func(userID uuid.UUID) (uuid.UUID, error) {
@@ -155,7 +164,7 @@ func main() {
 
 	adminRepo := admin.NewRepository(dbPool)
 	adminAuthService := admin.NewAuthService(authRepo, cfg.AdminJWTSecret, cfg.AdminJWTExpirationHours)
-	adminHandler := admin.NewHandler(adminRepo, adminAuthService, cfg.CookieSecure)
+	adminHandler := admin.NewHandler(adminRepo, adminAuthService, cfg.CookieSecure, crefValidator)
 
 	// Roteador Chi
 	r := chi.NewRouter()
@@ -192,6 +201,7 @@ func main() {
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Mount("/auth", authHandler.Routes(jwtAuth))
 		api.Mount("/professionals", profHandler.Routes(jwtAuth, availHandler.GetSlots))
+		api.Mount("/clients", clientsHandler.Routes(jwtAuth))
 		api.Mount("/specialties", profHandler.SpecialtiesRoutes())
 		api.Mount("/catalogs", profHandler.CatalogsRoutes())
 		api.Mount("/neighborhoods", profHandler.NeighborhoodsRoutes())
@@ -203,10 +213,12 @@ func main() {
 
 	// Servidor HTTP com graceful shutdown
 	server := &http.Server{
-		Addr:         ":" + cfg.Port,
-		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		Addr:        ":" + cfg.Port,
+		Handler:     r,
+		ReadTimeout: 15 * time.Second,
+		// A revalidacao do CREF no admin espera o portal (timeout de 15 s);
+		// 30 s dao folga para a resposta chegar antes do write deadline.
+		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 

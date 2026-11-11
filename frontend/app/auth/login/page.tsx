@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api";
 import { Input } from "@/components/Input";
@@ -69,9 +70,13 @@ export default function LoginPage() {
           href="/auth/login"
           className="inline-flex items-center gap-2 text-lg font-extrabold text-ink"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white">
-            🦜
-          </span>
+          <Image
+            src="/images/logo-fitconecta.png"
+            alt=""
+            width={36}
+            height={36}
+            className="h-9 w-9 rounded-xl"
+          />
           FitConecta<span className="-ml-2 text-brand">+</span>
         </Link>
       </div>

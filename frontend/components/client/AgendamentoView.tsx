@@ -173,7 +173,7 @@ export function AgendamentoView() {
               setDate(e.target.value);
               setSelectedSlot(null);
             }}
-            className="mt-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+            className="mt-2 rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </div>
 
@@ -210,7 +210,7 @@ export function AgendamentoView() {
                     className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
                       active
                         ? "border-brand bg-brand text-white"
-                        : "border-slate-200 bg-white text-ink hover:border-brand hover:bg-brand-soft"
+                        : "border-slate-200 bg-surface text-ink hover:border-brand hover:bg-brand-soft"
                     }`}
                   >
                     {specialty.name}
@@ -229,7 +229,7 @@ export function AgendamentoView() {
             aria-label="Local da sessão"
             value={locationType}
             onChange={(e) => setLocationType(e.target.value as LocationType | "")}
-            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
           >
             <option value="" disabled>
               Selecione o local...
@@ -254,7 +254,7 @@ export function AgendamentoView() {
             rows={3}
             maxLength={500}
             placeholder="Ex.: endereço completo, ponto de referência, observações..."
-            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </div>
 

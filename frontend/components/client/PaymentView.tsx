@@ -308,7 +308,7 @@ export function PaymentView() {
                       {formatCountdown(secondsLeft ?? 0)}
                     </span>
                   </p>
-                  <div className="mt-3 rounded-xl bg-white p-3 shadow-sm">
+                  <div className="mt-3 rounded-xl bg-surface p-3 shadow-sm">
                     <Image
                       src={charge!.qr_code_image!}
                       alt="QR Code para pagamento Pix"
@@ -332,7 +332,7 @@ export function PaymentView() {
                       readOnly
                       value={charge!.copy_paste}
                       rows={3}
-                      className="mt-1 w-full resize-none rounded-xl border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-ink"
+                      className="mt-1 w-full resize-none rounded-xl border border-slate-300 bg-surface px-3 py-2 font-mono text-xs text-ink"
                     />
                     <Button
                       variant="secondary"

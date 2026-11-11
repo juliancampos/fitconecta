@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"fitconecta/core-api/internal/cref"
 	"fitconecta/core-api/internal/platform/httputil"
 	"fitconecta/core-api/internal/platform/middleware"
 	"github.com/go-chi/chi/v5"
@@ -17,13 +18,14 @@ import (
 )
 
 type Handler struct {
-	repo         Repository
-	auth         AuthService
-	cookieSecure bool
+	repo          Repository
+	auth          AuthService
+	cookieSecure  bool
+	crefValidator cref.Validator
 }
 
-func NewHandler(repo Repository, authService AuthService, cookieSecure bool) *Handler {
-	return &Handler{repo: repo, auth: authService, cookieSecure: cookieSecure}
+func NewHandler(repo Repository, authService AuthService, cookieSecure bool, crefValidator cref.Validator) *Handler {
+	return &Handler{repo: repo, auth: authService, cookieSecure: cookieSecure, crefValidator: crefValidator}
 }
 
 func (h *Handler) Routes(adminAuth func(http.Handler) http.Handler) chi.Router {
@@ -42,6 +44,7 @@ func (h *Handler) Routes(adminAuth func(http.Handler) http.Handler) chi.Router {
 		g.Get("/users", h.ListUsers)
 		g.Get("/users/{id}", h.GetUser)
 		g.Patch("/users/{id}/status", h.UpdateUserStatus)
+		g.Post("/users/{id}/cref/revalidate", h.RevalidateUserCREF)
 	})
 
 	return r
@@ -187,6 +190,94 @@ func (h *Handler) SummaryPayments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.Success(w, http.StatusOK, summary)
+}
+
+// RevalidateUserCREF consulta o portal do CREF6 de novo e, se o registro
+// estiver ativo, grava a data da verificacao. Responde 200 com o resultado
+// para o painel exibir a mensagem sem tratar como erro de requisicao.
+func (h *Handler) RevalidateUserCREF(w http.ResponseWriter, r *http.Request) {
+	admin, ok := middleware.GetAuthUser(r.Context())
+	if !ok {
+		httputil.Error(w, http.StatusUnauthorized, "Nao autenticado")
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httputil.Error(w, http.StatusBadRequest, "ID invalido")
+		return
+	}
+	user, err := h.repo.GetUser(r.Context(), id)
+	if err != nil {
+		writeRepoError(w, err)
+		return
+	}
+	if user.Role != "professional" || user.ProfessionalID == nil {
+		httputil.Error(w, http.StatusUnprocessableEntity, "Usuario nao e um profissional")
+		return
+	}
+	number := ""
+	if user.CREFNumber != nil {
+		number = strings.TrimSpace(*user.CREFNumber)
+	}
+	if number == "" {
+		httputil.Success(w, http.StatusOK, CREFCheck{Reason: "no_cref", Message: "Profissional sem CREF cadastrado."})
+		return
+	}
+
+	check := CREFCheck{Verified: true, Reason: "ok", Message: "CREF verificado no portal do CREF6."}
+	if _, err := h.crefValidator.Validate(r.Context(), number); err != nil {
+		check = crefCheckError(err)
+	}
+
+	write, verifiedAt := decideCREFUpdate(check, time.Now())
+	if !write {
+		httputil.Success(w, http.StatusOK, check)
+		return
+	}
+
+	applied, err := h.repo.SetProfessionalCREFVerified(
+		r.Context(), admin.ID, user.ID, number, verifiedAt, check.Reason, requestIP(r), r.UserAgent(),
+	)
+	if err != nil {
+		writeRepoError(w, err)
+		return
+	}
+	if !applied {
+		httputil.Success(w, http.StatusOK, CREFCheck{
+			Reason:  "cref_changed",
+			Message: "O CREF foi alterado durante a consulta. Revalide o registro.",
+		})
+		return
+	}
+	if !check.Verified {
+		check.Message += " O selo de verificacao foi removido."
+	}
+	httputil.Success(w, http.StatusOK, check)
+}
+
+// decideCREFUpdate diz se o resultado da consulta deve ser persistido e com
+// qual data: positivo grava agora; negativo remove o selo antigo (o portal eh a
+// fonte da verdade). Portal indisponivel nao altera nada.
+func decideCREFUpdate(check CREFCheck, now time.Time) (bool, *time.Time) {
+	switch check.Reason {
+	case "ok":
+		return true, &now
+	case "not_found", "inactive":
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+func crefCheckError(err error) CREFCheck {
+	switch {
+	case errors.Is(err, cref.ErrNotFound):
+		return CREFCheck{Reason: "not_found", Message: "CREF nao encontrado no portal do CREF6 (MG)."}
+	case errors.Is(err, cref.ErrInactive):
+		return CREFCheck{Reason: "inactive", Message: "CREF encontrado, mas nao esta ativo no portal do CREF6."}
+	default:
+		return CREFCheck{Reason: "unavailable", Message: "Nao foi possivel consultar o portal do CREF6 agora. Tente novamente em instantes."}
+	}
 }
 
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {

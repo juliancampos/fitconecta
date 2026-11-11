@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
+	"fitconecta/core-api/internal/cref"
+	"fitconecta/core-api/internal/crn"
 	"github.com/google/uuid"
 )
 
@@ -15,6 +18,8 @@ type Service interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*ProfessionalProfile, error)
 	GetMyProfile(ctx context.Context, userID uuid.UUID) (*ProfessionalProfile, error)
 	UpdateMyProfile(ctx context.Context, userID uuid.UUID, req *UpdateProfileRequest) (*ProfessionalProfile, error)
+	ValidateCREF(ctx context.Context, number string) (*cref.Profile, error)
+	ValidateCRN(ctx context.Context, number string) (*crn.Profile, error)
 	ListSpecialties(ctx context.Context) ([]Specialty, error)
 	SetMySpecialties(ctx context.Context, userID uuid.UUID, specialtyIDs []int) error
 
@@ -48,11 +53,13 @@ var ErrAudienceOtherRequired = errors.New("informe o outro publico especifico at
 var ErrInvalidCatalogItem = errors.New("opcao invalida no catalogo")
 
 type service struct {
-	repo Repository
+	repo          Repository
+	crefValidator cref.Validator
+	crnValidator  crn.Validator
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+func NewService(repo Repository, crefValidator cref.Validator, crnValidator crn.Validator) Service {
+	return &service{repo: repo, crefValidator: crefValidator, crnValidator: crnValidator}
 }
 
 func (s *service) List(ctx context.Context, f FilterParams) ([]ProfessionalProfile, error) {
@@ -75,7 +82,105 @@ func (s *service) UpdateMyProfile(ctx context.Context, userID uuid.UUID, req *Up
 	if req.SessionPriceCents <= 0 {
 		return nil, errors.New("o valor da sessao deve ser maior que zero")
 	}
-	return s.repo.Update(ctx, userID, req)
+	req.City = strings.TrimSpace(req.City)
+	req.State = strings.TrimSpace(req.State)
+	if req.City == "" {
+		return nil, errors.New("informe a cidade")
+	}
+	if req.State == "" {
+		return nil, errors.New("informe a UF")
+	}
+	req.CREFNumber = strings.TrimSpace(req.CREFNumber)
+	req.CRNNumber = strings.TrimSpace(req.CRNNumber)
+
+	current, err := s.repo.GetByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	// So o registro do proprio ramo e salvo (ADR 0014); o outro e ignorado.
+	if current.Branch == BranchNutrition {
+		req.CREFNumber = ""
+	} else {
+		req.CRNNumber = ""
+	}
+	// A verificacao vale para o numero consultado: se ele mudou, o perfil
+	// volta para "em analise" ate a nova consulta terminar.
+	crefChanged := digitsOnly(req.CREFNumber) != digitsOnly(derefString(current.CREFNumber))
+	crefVerifiedAt := current.CREFVerifiedAt
+	if crefChanged {
+		crefVerifiedAt = nil
+	}
+	crnChanged := digitsOnly(req.CRNNumber) != digitsOnly(derefString(current.CRNNumber))
+	crnVerifiedAt := current.CRNVerifiedAt
+	if crnChanged {
+		crnVerifiedAt = nil
+	}
+
+	updated, err := s.repo.Update(ctx, userID, req, crefVerifiedAt, crnVerifiedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	// Consulta em segundo plano: a resposta sai antes do conselho responder.
+	// Cada ramo revalida apenas o seu registro (ADR 0014).
+	if current.Branch == BranchNutrition {
+		if req.CRNNumber != "" && (crnChanged || crnVerifiedAt == nil) {
+			go s.verifyCRN(context.WithoutCancel(ctx), userID, req.CRNNumber)
+		}
+	} else if req.CREFNumber != "" && (crefChanged || crefVerifiedAt == nil) {
+		go s.verifyCREF(context.WithoutCancel(ctx), userID, req.CREFNumber)
+	}
+	return updated, nil
+}
+
+func (s *service) verifyCREF(ctx context.Context, userID uuid.UUID, number string) {
+	if _, err := s.crefValidator.Validate(ctx, number); err != nil {
+		return
+	}
+	verifiedAt := time.Now()
+	_ = s.repo.SetCREFVerified(ctx, userID, number, &verifiedAt)
+}
+
+func (s *service) verifyCRN(ctx context.Context, userID uuid.UUID, number string) {
+	if _, err := s.crnValidator.Validate(ctx, number); err != nil {
+		return
+	}
+	verifiedAt := time.Now()
+	_ = s.repo.SetCRNVerified(ctx, userID, number, &verifiedAt)
+}
+
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+// digitsOnly compara so os digitos: os portais dos conselhos ignoram UF,
+// categoria e zeros a esquerda, entao "012345-G/MG" e "012345" sao o mesmo
+// registro.
+// shortcut: trocar UF/categoria nao invalida o selo; se os portais passarem a
+// diferenciar a categoria, comparar a forma normalizada completa.
+func digitsOnly(value string) string {
+	var b strings.Builder
+	for _, r := range value {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// ValidateCREF consulta o portal do CREF6. O resultado e informativo: quem
+// chama (cadastro/edicao) nao bloqueia o salvamento por causa dele.
+func (s *service) ValidateCREF(ctx context.Context, number string) (*cref.Profile, error) {
+	return s.crefValidator.Validate(ctx, number)
+}
+
+// ValidateCRN consulta a CNN do CFN. O resultado e informativo: quem chama
+// (cadastro/edicao) nao bloqueia o salvamento por causa dele.
+func (s *service) ValidateCRN(ctx context.Context, number string) (*crn.Profile, error) {
+	return s.crnValidator.Validate(ctx, number)
 }
 
 func (s *service) ListSpecialties(ctx context.Context) ([]Specialty, error) {

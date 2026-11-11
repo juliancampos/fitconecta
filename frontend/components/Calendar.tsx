@@ -30,7 +30,7 @@ export function Calendar({ slots, value, onSelect, emptyText }: CalendarProps) {
           return (
             <div
               key={slot.starts_at}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-sm font-medium text-ink"
+              className="rounded-xl border border-slate-200 bg-surface px-3 py-2 text-center text-sm font-medium text-ink"
             >
               {formatSlotTime(slot)}
             </div>
@@ -46,7 +46,7 @@ export function Calendar({ slots, value, onSelect, emptyText }: CalendarProps) {
             className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
               selected
                 ? "border-brand bg-brand text-white"
-                : "border-slate-200 bg-white text-ink hover:border-brand hover:bg-brand-soft"
+                : "border-slate-200 bg-surface text-ink hover:border-brand hover:bg-brand-soft"
             }`}
           >
             {formatSlotTime(slot)}

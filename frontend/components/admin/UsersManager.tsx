@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiErrorMessage, apiGet, apiPatch } from "@/lib/admin/api";
-import type { AdminUser, Page, UserFilters } from "@/lib/admin/types";
-import { badgeClass, label, roleLabels, userStatusLabels } from "@/lib/admin/labels";
+import { apiErrorMessage, apiGet, apiPatch, apiPost } from "@/lib/admin/api";
+import type {
+  AdminUser,
+  CREFCheck,
+  Page,
+  UserFilters,
+} from "@/lib/admin/types";
+import { badgeClass, label, userStatusLabels } from "@/lib/admin/labels";
 import { formatDate } from "@/lib/admin/format";
 import {
   Card,
@@ -19,9 +24,20 @@ import {
   secondaryButtonClass,
 } from "@/components/admin/ui";
 
-const emptyFilters: UserFilters = { q: "", role: "", status: "" };
+const roleCopy = {
+  professional: {
+    title: "Profissionais",
+    description:
+      "Consulte os profissionais, veja o status do CREF e gerencie bloqueios e inativacoes.",
+  },
+  client: {
+    title: "Clientes",
+    description: "Consulte os clientes e gerencie bloqueios e inativacoes.",
+  },
+} as const;
 
-export default function UsuariosPage() {
+export function UsersManager({ role }: { role: "professional" | "client" }) {
+  const emptyFilters: UserFilters = { q: "", role, status: "" };
   const [filters, setFilters] = useState<UserFilters>(emptyFilters);
   const [applied, setApplied] = useState<UserFilters>(emptyFilters);
   const [page, setPage] = useState(1);
@@ -30,6 +46,11 @@ export default function UsuariosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyID, setBusyID] = useState<string | null>(null);
+  const [crefBusyID, setCrefBusyID] = useState<string | null>(null);
+  const [crefMessage, setCrefMessage] = useState<{
+    ok: boolean;
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -43,7 +64,9 @@ export default function UsuariosPage() {
         });
         params.set("page", String(page));
         params.set("page_size", "20");
-        const result = await apiGet<Page<AdminUser>>(`/api/v1/admin/users?${params.toString()}`);
+        const result = await apiGet<Page<AdminUser>>(
+          `/api/v1/admin/users?${params.toString()}`,
+        );
         if (active) setData(result);
       } catch (err) {
         if (active) setError(apiErrorMessage(err, "Erro ao carregar usuarios."));
@@ -71,7 +94,10 @@ export default function UsuariosPage() {
     setRefreshKey((key) => key + 1);
   }
 
-  async function changeStatus(user: AdminUser, status: "active" | "blocked" | "inactive") {
+  async function changeStatus(
+    user: AdminUser,
+    status: "active" | "blocked" | "inactive",
+  ) {
     let reason = "";
     if (status !== "active") {
       const input = window.prompt(
@@ -105,28 +131,49 @@ export default function UsuariosPage() {
     }
   }
 
+  async function revalidateCREF(user: AdminUser) {
+    setCrefBusyID(user.id);
+    setCrefMessage(null);
+    setError(null);
+    try {
+      const result = await apiPost<CREFCheck>(
+        `/api/v1/admin/users/${user.id}/cref/revalidate`,
+      );
+      setCrefMessage({ ok: result.verified, text: result.message });
+      setRefreshKey((key) => key + 1);
+    } catch (err) {
+      setError(apiErrorMessage(err, "Erro ao consultar o CREF."));
+    } finally {
+      setCrefBusyID(null);
+    }
+  }
+
+  const copy = roleCopy[role];
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Usuarios"
-        description="Consulte clientes e profissionais e gerencie bloqueios e inativacoes."
-      />
+      <PageHeader title={copy.title} description={copy.description} />
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
+      {crefMessage && (
+        <div
+          role="status"
+          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+            crefMessage.ok
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-amber-200 bg-amber-50 text-amber-700"
+          }`}
+        >
+          {crefMessage.text}
+        </div>
+      )}
+
       <Card className="p-4">
-        <form onSubmit={submit} className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <form onSubmit={submit} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="xl:col-span-2">
             <label htmlFor="q" className={labelClass}>Buscar</label>
             <input id="q" className={inputClass} placeholder="Nome ou e-mail" value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} />
-          </div>
-          <div>
-            <label htmlFor="role" className={labelClass}>Papel</label>
-            <select id="role" className={inputClass} value={filters.role} onChange={(event) => setFilters({ ...filters, role: event.target.value })}>
-              <option value="">Todos</option>
-              <option value="client">Clientes</option>
-              <option value="professional">Profissionais</option>
-            </select>
           </div>
           <div>
             <label htmlFor="status" className={labelClass}>Status</label>
@@ -150,7 +197,6 @@ export default function UsuariosPage() {
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-4 py-3 font-semibold">Usuario</th>
-                <th className="px-4 py-3 font-semibold">Papel</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Futuros</th>
                 <th className="px-4 py-3 font-semibold">Cadastro</th>
@@ -158,15 +204,35 @@ export default function UsuariosPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 align-top">
-              <TableState loading={loading} empty={!data || data.items.length === 0} colSpan={6} />
+              <TableState loading={loading} empty={!data || data.items.length === 0} colSpan={5} />
               {!loading && data?.items.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/70">
                   <td className="px-4 py-3">
                     <div className="font-medium text-ink">{item.display_name}</div>
                     <div className="text-xs text-muted">{item.email}</div>
                     {(item.city || item.state) && <div className="text-xs text-muted">{[item.city, item.state].filter(Boolean).join(" / ")}</div>}
+                    {role === "professional" && !item.cref_number && (
+                      <span className="mt-1 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
+                        CREF nao cadastrado
+                      </span>
+                    )}
+                    {role === "professional" && item.cref_number && (
+                      <span
+                        title={
+                          item.cref_verified_at
+                            ? "CREF validado no portal do CREF6"
+                            : "CREF ainda nao confirmado no portal do CREF6"
+                        }
+                        className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          item.cref_verified_at
+                            ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
+                            : "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200"
+                        }`}
+                      >
+                        CREF {item.cref_number} · {item.cref_verified_at ? "verificado" : "em analise"}
+                      </span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-ink">{label(roleLabels, item.role)}</td>
                   <td className="px-4 py-3">
                     <StatusBadge label={label(userStatusLabels, item.status)} className={badgeClass(item.status)} />
                     {item.status_reason && <div className="mt-1 max-w-56 text-xs text-muted">{item.status_reason}</div>}
@@ -175,6 +241,16 @@ export default function UsuariosPage() {
                   <td className="whitespace-nowrap px-4 py-3 text-ink">{formatDate(item.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
+                      {role === "professional" && item.cref_number && (
+                        <button
+                          type="button"
+                          disabled={crefBusyID !== null}
+                          onClick={() => revalidateCREF(item)}
+                          className={secondaryButtonClass}
+                        >
+                          {crefBusyID === item.id ? "Consultando..." : "Revalidar CREF"}
+                        </button>
+                      )}
                       {item.status !== "active" && (
                         <button type="button" disabled={busyID === item.id} onClick={() => changeStatus(item, "active")} className={secondaryButtonClass}>
                           Reativar

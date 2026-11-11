@@ -250,6 +250,8 @@ CREATE TABLE device_tokens (
 CREATE INDEX idx_device_tokens_user ON device_tokens(user_id);
 ```
 
+> **Nota (2026-11-01, revisada em 2026-11-02):** o [ADR 0012](0012-dados-pessoais-do-cliente.md) adiciona a `client_profiles` as colunas opcionais `birth_date DATE`, `sex client_sex`, `height_cm SMALLINT`, `weight_kg NUMERIC(5,1)`, `activity_level client_activity_level` e `objective TEXT` (migrations `0013_client_personal_data.sql` e `0014_client_activity_and_objective.sql`). O DDL acima é o estado original.
+
 ---
 
 ## 5. Regras de Negócio Implementadas no Banco

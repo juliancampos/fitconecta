@@ -17,3 +17,8 @@ Este diretório contém os **Architecture Decision Records (ADRs)** do projeto *
 | [ADR 0009](0009-admin-no-mesmo-dominio.md) | Painel Administrativo no Mesmo Domínio em `/admin` | Aceito | 2026-10-20 |
 | [ADR 0010](0010-pagamento-obrigatorio-pix-no-agendamento.md) | Pagamento Obrigatório via Pix no Fluxo de Agendamento | Aceito | 2026-10-20 |
 | [ADR 0011](0011-servicos-objetivos-publicos-e-precos.md) | Serviços, Objetivos, Públicos, Formatos e Preços por Serviço | Proposto | 2026-10-30 |
+| [ADR 0012](0012-dados-pessoais-do-cliente.md) | Dados Pessoais e Físicos do Cliente (Nascimento, Sexo, Altura, Peso, Frequência de Atividades e Objetivo) | Aceito | 2026-11-01 |
+| [ADR 0013](0013-validacao-cref-no-cadastro.md) | Validação Automática do CREF no Cadastro do Profissional | Aceito | 2026-11-03 |
+| [ADR 0014](0014-cadastro-de-nutricionistas.md) | Ramo do Profissional e Cadastro de Nutricionistas (CFN/CRN) | Aceito | 2026-11-10 |
+| [ADR 0015](0015-sessao-iniciada-no-cadastro.md) | Sessão Iniciada no Cadastro (Redirecionamento Logado para a Home) | Aceito | 2026-11-10 |
+| [ADR 0016](0016-cadastro-minimo-do-profissional-e-complemento-no-perfil.md) | Cadastro Mínimo do Profissional e Complemento no Perfil | Aceito | 2026-11-11 |

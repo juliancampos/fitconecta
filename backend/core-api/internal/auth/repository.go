@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -20,6 +21,8 @@ type Repository interface {
 	CreateUserWithProfile(ctx context.Context, u *User, req *RegisterRequest) (*UserProfileResponse, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	GetProfileByUserID(ctx context.Context, userID uuid.UUID, role Role) (*UserProfileResponse, error)
+	SetCREFVerified(ctx context.Context, userID uuid.UUID, number string) error
+	SetCRNVerified(ctx context.Context, userID uuid.UUID, number string) error
 }
 
 type pgRepository struct {
@@ -70,19 +73,23 @@ func (r *pgRepository) CreateUserWithProfile(ctx context.Context, u *User, req *
 		}
 
 		queryProf := `
-			INSERT INTO professional_profiles (user_id, display_name, bio, city, state, session_price_cents, cref_number)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
-			RETURNING id, display_name, bio, city, state, session_price_cents, cref_number, approved_at;
+			INSERT INTO professional_profiles (user_id, display_name, bio, city, state, session_price_cents, branch, cref_number, crn_number)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			RETURNING id, display_name, bio, city, state, session_price_cents, branch, cref_number, cref_verified_at, crn_number, crn_verified_at, approved_at;
 		`
 		type profProfile struct {
-			ID                uuid.UUID `json:"id"`
-			DisplayName       string    `json:"display_name"`
-			Bio               *string   `json:"bio"`
-			City              string    `json:"city"`
-			State             string    `json:"state"`
-			SessionPriceCents int       `json:"session_price_cents"`
-			CREFNumber        *string   `json:"cref_number"`
-			ApprovedAt        *string   `json:"approved_at"`
+			ID                uuid.UUID  `json:"id"`
+			DisplayName       string     `json:"display_name"`
+			Bio               *string    `json:"bio"`
+			City              string     `json:"city"`
+			State             string     `json:"state"`
+			SessionPriceCents int        `json:"session_price_cents"`
+			Branch            string     `json:"branch"`
+			CREFNumber        *string    `json:"cref_number"`
+			CREFVerifiedAt    *time.Time `json:"cref_verified_at"`
+			CRNNumber         *string    `json:"crn_number"`
+			CRNVerifiedAt     *time.Time `json:"crn_verified_at"`
+			ApprovedAt        *string    `json:"approved_at"`
 		}
 		var p profProfile
 		err = tx.QueryRow(ctx, queryProf,
@@ -92,8 +99,10 @@ func (r *pgRepository) CreateUserWithProfile(ctx context.Context, u *User, req *
 			req.City,
 			req.State,
 			sessionPrice,
-			req.CREFNumber,
-		).Scan(&p.ID, &p.DisplayName, &p.Bio, &p.City, &p.State, &p.SessionPriceCents, &p.CREFNumber, &p.ApprovedAt)
+			req.Branch,
+			nullIfEmpty(req.CREFNumber),
+			nullIfEmpty(req.CRNNumber),
+		).Scan(&p.ID, &p.DisplayName, &p.Bio, &p.City, &p.State, &p.SessionPriceCents, &p.Branch, &p.CREFNumber, &p.CREFVerifiedAt, &p.CRNNumber, &p.CRNVerifiedAt, &p.ApprovedAt)
 		if err != nil {
 			return nil, fmt.Errorf("erro ao criar perfil do profissional autônomo: %w", err)
 		}
@@ -206,22 +215,26 @@ func (r *pgRepository) GetProfileByUserID(ctx context.Context, userID uuid.UUID,
 	var profile interface{}
 	if u.Role == RoleProfessional {
 		queryProf := `
-			SELECT id, display_name, bio, city, state, session_price_cents, cref_number, approved_at
+			SELECT id, display_name, bio, city, state, session_price_cents, branch, cref_number, cref_verified_at, crn_number, crn_verified_at, approved_at
 			FROM professional_profiles
 			WHERE user_id = $1;
 		`
 		var p struct {
-			ID                uuid.UUID `json:"id"`
-			DisplayName       string    `json:"display_name"`
-			Bio               *string   `json:"bio"`
-			City              string    `json:"city"`
-			State             string    `json:"state"`
-			SessionPriceCents int       `json:"session_price_cents"`
-			CREFNumber        *string   `json:"cref_number"`
-			ApprovedAt        *string   `json:"approved_at"`
+			ID                uuid.UUID  `json:"id"`
+			DisplayName       string     `json:"display_name"`
+			Bio               *string    `json:"bio"`
+			City              string     `json:"city"`
+			State             string     `json:"state"`
+			SessionPriceCents int        `json:"session_price_cents"`
+			Branch            string     `json:"branch"`
+			CREFNumber        *string    `json:"cref_number"`
+			CREFVerifiedAt    *time.Time `json:"cref_verified_at"`
+			CRNNumber         *string    `json:"crn_number"`
+			CRNVerifiedAt     *time.Time `json:"crn_verified_at"`
+			ApprovedAt        *string    `json:"approved_at"`
 		}
 		err = r.pool.QueryRow(ctx, queryProf, userID).Scan(
-			&p.ID, &p.DisplayName, &p.Bio, &p.City, &p.State, &p.SessionPriceCents, &p.CREFNumber, &p.ApprovedAt,
+			&p.ID, &p.DisplayName, &p.Bio, &p.City, &p.State, &p.SessionPriceCents, &p.Branch, &p.CREFNumber, &p.CREFVerifiedAt, &p.CRNNumber, &p.CRNVerifiedAt, &p.ApprovedAt,
 		)
 		if err == nil {
 			profile = p
@@ -251,4 +264,41 @@ func (r *pgRepository) GetProfileByUserID(ctx context.Context, userID uuid.UUID,
 		User:    u,
 		Profile: profile,
 	}, nil
+}
+
+// SetCREFVerified grava a data da validacao apenas se o CREF ainda for o mesmo
+// que foi consultado em segundo plano.
+func (r *pgRepository) SetCREFVerified(ctx context.Context, userID uuid.UUID, number string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE professional_profiles
+		SET cref_verified_at = NOW()
+		WHERE user_id = $1 AND cref_number = $2;
+	`, userID, number)
+	if err != nil {
+		return fmt.Errorf("erro ao gravar verificacao do CREF: %w", err)
+	}
+	return nil
+}
+
+// SetCRNVerified grava a data da validacao apenas se o CRN ainda for o mesmo
+// que foi consultado em segundo plano.
+func (r *pgRepository) SetCRNVerified(ctx context.Context, userID uuid.UUID, number string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE professional_profiles
+		SET crn_verified_at = NOW()
+		WHERE user_id = $1 AND crn_number = $2;
+	`, userID, number)
+	if err != nil {
+		return fmt.Errorf("erro ao gravar verificacao do CRN: %w", err)
+	}
+	return nil
+}
+
+// nullIfEmpty grava NULL nas colunas de registro de conselho nao informadas
+// (ex.: nutricionista nao tem CREF).
+func nullIfEmpty(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }
